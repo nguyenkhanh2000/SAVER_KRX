@@ -65,100 +65,100 @@ namespace PriceLib.Implementations
 				return new EDalResult() { Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL, Message = ex.Message, Data = null };
 			}
 		}
-        public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
-        {
-            Stopwatch m_SW = Stopwatch.StartNew();
-            TExecutionContext ec = this._cS6GApp.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} script={scripts}", true);
-            ISqlServer<ESecurityDefinition> sqlServer = new CSqlServer<ESecurityDefinition>(this._cS6GApp, this._ePriceConfig.ConnectionMssql);
+		public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
+		{
+			Stopwatch m_SW = Stopwatch.StartNew();
+			TExecutionContext ec = this._cS6GApp.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} script={scripts}", true);
+			ISqlServer<ESecurityDefinition> sqlServer = new CSqlServer<ESecurityDefinition>(this._cS6GApp, this._ePriceConfig.ConnectionMssql);
 
-            try
-            {
-                int successCount = 0;
-                foreach (var script in scripts)
-                {
-                    try
-                    {
-                        int rowsAffected = await sqlServer.ExecuteAsync(script);
-                        if (rowsAffected > 0) successCount++;
-                    }
-                    catch (Exception ex)
-                    {
-                        this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-                        return new EDalResult()
-                        {
-                            Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
-                            Message = ex.Message,
-                            Data = null
-                        };
-                    }
-                }
+			try
+			{
+				int successCount = 0;
+				foreach (var script in scripts)
+				{
+					try
+					{
+						int rowsAffected = await sqlServer.ExecuteAsync(script);
+						if (rowsAffected > 0) successCount++;
+					}
+					catch (Exception ex)
+					{
+						this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+						return new EDalResult()
+						{
+							Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
+							Message = ex.Message,
+							Data = null
+						};
+					}
+				}
 
-                var result = new EDalResult()
-                {
-                    Code = EDalResult.__CODE_SUCCESS,
-                    Message = $"{successCount}/{scripts.Count} scripts executed successfully.",
-                    Data = successCount
-                };
+				var result = new EDalResult()
+				{
+					Code = EDalResult.__CODE_SUCCESS,
+					Message = $"{successCount}/{scripts.Count} scripts executed successfully.",
+					Data = successCount
+				};
 
-                //Console.WriteLine("SQL_TIMER_" + m_SW.ElapsedMilliseconds.ToString());
-                return result;
-            }
-            catch (Exception ex)
-            {
-                this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-                return new EDalResult()
-                {
-                    Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
-                    Message = ex.Message,
-                    Data = null
-                };
-            }
-        }
-        //public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
-        //{
-        //    Stopwatch m_SW = Stopwatch.StartNew();
-        //    TExecutionContext ec = this._cS6GApp.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} script={scripts}", true);
-        //    ISqlServer<ESecurityDefinition> sqlServer = new CSqlServer<ESecurityDefinition>(this._cS6GApp, this._ePriceConfig.ConnectionMssql);
+				Console.WriteLine("SQL_TIMER_____:" + " - " + m_SW.ElapsedMilliseconds.ToString());
+				return result;
+			}
+			catch (Exception ex)
+			{
+				this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+				return new EDalResult()
+				{
+					Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
+					Message = ex.Message,
+					Data = null
+				};
+			}
+		}
+		//public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
+		//{
+		//	Stopwatch m_SW = Stopwatch.StartNew();
+		//	TExecutionContext ec = this._cS6GApp.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} script={scripts}", true);
+		//	ISqlServer<ESecurityDefinition> sqlServer = new CSqlServer<ESecurityDefinition>(this._cS6GApp, this._ePriceConfig.ConnectionMssql);
 
-        //    try
-        //    {
+		//	try
+		//	{
 
-        //        EDalResult result;
+		//		EDalResult result;
 
-        //        var tasks = scripts.Select(async script =>
-        //        {
-        //            try
-        //            {
-        //                await sqlServer.ExecuteAsync(script);
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-        //            }
-        //        });
-        //        await Task.WhenAll(tasks);
+		//		var tasks = scripts.Select(async script =>
+		//		{
+		//			try
+		//			{
+		//				await sqlServer.ExecuteAsync(script);
+		//			}
+		//			catch (Exception ex)
+		//			{
+		//				this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+		//			}
+		//		});
+		//		await Task.WhenAll(tasks);
 
-        //        result = new EDalResult() { Code = EDalResult.__CODE_SUCCESS, Message = EDalResult.__STRING_SUCCESS, Data = 0 };
-        //        Console.WriteLine("SQL_TIMER_" + m_SW.ElapsedMilliseconds.ToString());
-        //        return result;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        // log error + buffer data
-        //        this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-        //        // error => return null
-        //        return new EDalResult() { Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL, Message = ex.Message, Data = null };
-        //    }
-        //}
-        /// <summary>
-        /// 2020-07-24 10:55:58 ngocta2
-        /// 4.1 Security Definition
-        /// insert data vao table tSecurityDefinition
-        /// chi insert 1 row 1 lan exec sp
-        /// </summary>
-        /// <param name="eSD"></param>
-        /// <returns></returns>
-        public async Task<EDalResult> UpdateSecurityDefinition(ESecurityDefinition eSD, bool getScriptOnly = false)
+		//		result = new EDalResult() { Code = EDalResult.__CODE_SUCCESS, Message = EDalResult.__STRING_SUCCESS, Data = 0 };
+  //              //Console.WriteLine("SQL_TIMER_____:" + " - " + m_SW.ElapsedMilliseconds.ToString());
+  //              return result;
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		// log error + buffer data
+		//		this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+		//		// error => return null
+		//		return new EDalResult() { Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL, Message = ex.Message, Data = null };
+		//	}
+		//}
+		/// <summary>
+		/// 2020-07-24 10:55:58 ngocta2
+		/// 4.1 Security Definition
+		/// insert data vao table tSecurityDefinition
+		/// chi insert 1 row 1 lan exec sp
+		/// </summary>
+		/// <param name="eSD"></param>
+		/// <returns></returns>
+		public async Task<EDalResult> UpdateSecurityDefinition(ESecurityDefinition eSD, bool getScriptOnly = false)
 		{
 			// log input
             TExecutionContext ec = this._cS6GApp.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} eSD={this._cS6GApp.Common.SerializeObject(eSD)}", true);

@@ -100,7 +100,7 @@ namespace PriceLib.Implementations
 					Data = successCount
 				};
 
-				Console.WriteLine("SQL_TIMER_____:" + " - " + m_SW.ElapsedMilliseconds.ToString());
+				Console.WriteLine("SQL_TIMER__________________________ :" + " - " + m_SW.ElapsedMilliseconds.ToString());
 				return result;
 			}
 			catch (Exception ex)

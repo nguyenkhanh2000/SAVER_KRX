@@ -10,7 +10,7 @@ namespace BaseSaverLib.Interfaces
 {
     public interface IMDDSHandler
     {
-        Task<EBulkScript> ProcessMessage(string msgType, string rawData);
+        Task<ProcessMessageResult> ProcessMessage(string msgType, string rawData);
         //Task<EBulkScript> ProcessMessage(string msgType, string rawData);
         Task<bool> BuildScriptSQL(string[] arrMsg);
     }

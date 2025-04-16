@@ -602,7 +602,7 @@ namespace BaseSaverLib.Implementations
 
                                     bulkCopy.WriteToServer(dt);
                                 }
-                                Console.WriteLine("Bulk insert thành công.");
+                                //Console.WriteLine("Bulk insert thành công.");
                             }
                             catch (Exception ex)
                             {
@@ -612,7 +612,7 @@ namespace BaseSaverLib.Implementations
                             {
                                 checkCmd.Transaction = transaction;
                                 var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                                Console.WriteLine("Số dòng trong bảng tạm MSG_X: " + count);
                             }
                             // Gọi stored procedure để insert/update dữ liệu vào bảng chính
                             using (OracleCommand cmdProc = new OracleCommand("PROC_MERGE_MSG_X_HSX", conn))
@@ -634,12 +634,12 @@ namespace BaseSaverLib.Implementations
                                 cmdTruncate.Transaction = transaction;
                                 cmdTruncate.ExecuteNonQuery();
                             }
-                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X_HSX", conn))
-                            {
-                                checkCmd.Transaction = transaction;
-                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            }
+                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X_HSX", conn))
+                            //{
+                            //    checkCmd.Transaction = transaction;
+                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            //}
                             // Commit transaction sau khi tất cả các thao tác thành công
                             transaction.Commit();
                         }

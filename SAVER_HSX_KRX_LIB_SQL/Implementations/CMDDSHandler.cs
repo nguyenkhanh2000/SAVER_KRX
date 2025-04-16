@@ -34,6 +34,7 @@ using Oracle.ManagedDataAccess.Types;
 using PriceLib.Models;
 using System.Data.SqlClient;
 using Microsoft.AspNetCore.Http;
+using Pipelines.Sockets.Unofficial.Arenas;
 
 namespace BaseSaverLib.Implementations
 {
@@ -48,6 +49,11 @@ namespace BaseSaverLib.Implementations
         private ConcurrentQueue<SqlMessageWithObj> m_queueOracle = new ConcurrentQueue<SqlMessageWithObj>();
         public HashSet<string> marketDataTypes = new HashSet<string> { "X", "MF", "M8", "ME", "M7", "f" };
 
+        // Dic lưu sequence trước theo msgType
+        private readonly Dictionary<string, long> dic_preSeq = new Dictionary<string, long>();
+        // Dic lưu danh sách các sequence bị thiếu theo msgType
+        private readonly Dictionary<string, SequenceGapInfo> dic_missSeq = new Dictionary<string, SequenceGapInfo>();
+
         Stopwatch m_SW = new Stopwatch();
 
         // vars
@@ -58,27 +64,6 @@ namespace BaseSaverLib.Implementations
         private object m_objLocker = new object();
         private const string TEMPLATE_REDIS_KEY_REALTIME = "REALTIME:S5G_(Symbol)"; //   REALTIME:S5G_ABT
         public const int intPeriod = 43830; //đủ time cho key sống 1 tháng
-        //KL theo thời gian lô chẵn
-        private const string TEMPLATE_REDIS_KEY_LE = "LE:S5G_(Symbol)";       //   LE:S5G_ABT
-        private const string TEMPLATE_REDIS_KEY_LE_TKTT_VOL = "TKTT:VOL:(Symbol):0";
-        private const string TEMPLATE_REDIS_KEY_LE_TKTT_VAL = "TKTT:VAL:(Symbol):0";
-        private const string TEMPLATE_REDIS_KEY_LS = "LS:(Symbol)";
-
-        private const string TEMPLATE_REDIS_KEY_PT = "PT:SYMBOL:(Symbol):(Board)";
-        private const string TEMPLATE_REDIS_KEY_PT_ALL = "PT:ALL:HSX:KL:(Board)";
-        private const string TEMPLATE_REDIS_KEY_PT_SIDE_B = "PT:ALL:HSX:BUY:(Board)";
-        private const string TEMPLATE_REDIS_KEY_PT_SIDE_S = "PT:ALL:HSX:SELL:(Board)";
-
-        private const string TEMPLATE_JSONC_LE = "{\"MT\":\"(MT)\",\"MQ\":(MQ),\"MP\":(MP),\"TQ\":(TQ)}";
-        private const string TEMPLATE_JSONC_LE_TKTT = "{\"MT\":\"(MT)\",\"MP\":(MP),\"TQ\":(TQ),\"TV\":(TV)}";
-        private const string TEMPLATE_JSONC_LS = "{\"MT\":\"(MT)\",\"CN\":(CN),\"MP\":(MP),\"MQ\":(MQ),\"SIDE\":(SIDE)}";
-
-        // lô lẻ hsx
-        public const string TEMPLATE_JSONC_PO = "{\"T\":\"(T)\",\"S\":\"(S)\",\"BP1\":(BP1),\"BQ1\":(BQ1),\"BP2\":(BP2),\"BQ2\":(BQ2),\"BP3\":(BP3),\"BQ3\":(BQ3),\"SP1\":(SP1),\"SQ1\":(SQ1),\"SP2\":(SP2),\"SQ2\":(SQ2),\"SP3\":(SP3),\"SQ3\":(SQ3)}";    //
-        public const string TEMPLATE_REDIS_KEY_PO = "PO:S5G_(Symbol)";
-        public const string TEMPLATE_REDIS_KEY_STOCK_NO_HNX = "Key_StockNo_Saver_HNX";
-        public const string TEMPLATE_REDIS_KEY_STOCK_NO_HSX = "Key_StockNo_Saver_HSX";
-        private const string TEMPLATE_REDIS_VALUE = "{\"Time\":\"(Now)\",\"Data\":[(RedisData)]}";
 
         private readonly CRedisConfig _redisConfig;
         private readonly CRedis_New _redis;
@@ -124,6 +109,7 @@ namespace BaseSaverLib.Implementations
                 // Duyệt từng tin nhắn và nhóm theo msgType
                 foreach (string msg in arrMsg)
                 {
+                    long currentSeq = 0;
                     totalcount++;
                     //Log Dequeue
                     //this._app.InfoLogger.LogInfo(msg);
@@ -131,27 +117,69 @@ namespace BaseSaverLib.Implementations
                     if (msgType == EPrice.__MSG_TYPE)
                     {
                         EPrice eP = this._app.HandCode.Fix_Fix2EPrice(msg, true, 1, 2, 1);
+                        currentSeq = eP.MsgSeqNum;
                         lst_eP.Add(eP);
                     }
                     else if(msgType == EPriceRecovery.__MSG_TYPE)
                     {
                         EPriceRecovery ePR = this._app.HandCode.Fix_Fix2EPriceRecovery(msg, true, 1, 2, 1);
+                        currentSeq = ePR.MsgSeqNum;
                         lst_ePR.Add(ePR);
                     }
                     else
                     {
-                        var eBulkScript = await ProcessMessage(msgType, msg);
+                        //var eBulkScript = await ProcessMessage(msgType, msg);
+                        ProcessMessageResult processMessageResult = ProcessMessage(msgType, msg).GetAwaiter().GetResult();
+                        currentSeq = processMessageResult.MsgSeqNum;
 
-                        if (!string.IsNullOrEmpty(eBulkScript.MssqlScript))
+                        if (!string.IsNullOrEmpty(processMessageResult.Script.MssqlScript))
                         {
                             if (!mssqlScriptsByType.TryGetValue(msgType, out var mssqlList))
                             {
                                 mssqlList = new List<string>();
                                 mssqlScriptsByType[msgType] = mssqlList;
                             }
-                            mssqlList.Add(eBulkScript.MssqlScript);                            
+                            mssqlList.Add(processMessageResult.Script.MssqlScript);                            
                         }
-                    }   
+                    }
+                    if (currentSeq != 0)
+                    {
+                        string groupMsgType = marketDataTypes.Contains(msgType) ? "MarketData" : msgType;
+
+                        if(msgType != "M1"){
+                            if (dic_preSeq.TryGetValue(groupMsgType, out long lastSeq))
+                            {
+                                if (currentSeq > lastSeq + 1)
+                                {
+                                    var gapInfo = new SequenceGapInfo
+                                    {
+                                        OldSequence = lastSeq,
+                                        NewSequence = currentSeq
+                                    };
+                                    for (long missing = lastSeq + 1; missing < currentSeq; missing++)
+                                    {
+                                        gapInfo.MissingSequences.Add(missing);
+                                        this._app.SqlLogger.LogSciptSQL($"AAA_SQLSERVER_{groupMsgType}", $"Check_Sequence: OldSequence: {lastSeq} - MissingSequence: {missing}");
+                                    }
+                                    dic_missSeq[groupMsgType] = gapInfo;
+                                }
+                                if (currentSeq < lastSeq)
+                                {
+                                    this._app.SqlLogger.LogSciptSQL($"Error_MissMsg", $"Seq_New: {currentSeq} ---- Seq_Old: {lastSeq}  ----- MsgType: {groupMsgType}");
+                                }
+                                dic_preSeq[groupMsgType] = currentSeq;
+                            }
+                            else
+                            {
+                                dic_preSeq[groupMsgType] = currentSeq;
+                            }
+                        }
+                    } 
+                }
+                if (dic_missSeq.Count > 0) 
+                {
+                    await fnc_MissSeq(dic_missSeq);
+                    dic_missSeq.Clear();
                 }
                 if(lst_eP.Count > 0)
                 {
@@ -198,16 +226,10 @@ namespace BaseSaverLib.Implementations
                         mssqlBatchBuilder.Append(sqlExec).Append(script);
                     }
                     mssqlBatchBuilder.Append(EGlobalConfig.__STRING_RETURN_NEW_LINE).Append(sqlCommitTransaction);
-
-                    //this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", mssqlBatchBuilder.ToString());
-
-                    //this._app.SqlLogger.LogSql(mssqlBatchBuilder.ToString());
                     Scriptmssql.Add(mssqlBatchBuilder.ToString());
-                    // Ghi log SQL Server
-                    //this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", mssqlBatchBuilder.ToString());
 
                     //Ghi log count 
-                    this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString().Length}");
+                    this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString()}");
                 }
                 Console.WriteLine("SQL_TIMER_BULK_INSERT______________________________:" + sW.ElapsedMilliseconds.ToString());
                 // Thực thi batch scripts
@@ -240,6 +262,58 @@ namespace BaseSaverLib.Implementations
             finally
             {
                 _semaphore.Release();
+            }
+        }
+        public async Task fnc_MissSeq(Dictionary<string, SequenceGapInfo> dic_Seq)
+        {
+            try
+            {
+                var missingLogList = new List<CMsgSeq>();
+                foreach (var item in dic_Seq)
+                {
+                    string msgType = item.Key;
+                    var info = item.Value;
+                    foreach (var msg in info.MissingSequences)
+                    {
+                        missingLogList.Add(new CMsgSeq
+                        {
+                            Exchange = "STO",
+                            MsgType = msgType,
+                            SeqMiss = msg,
+                            SeqOld = info.OldSequence,
+                            SeqNew = info.NewSequence,
+                            Time = DateTime.Now,
+                        });
+                    }
+                }
+                using (var connection = new SqlConnection(this._priceConfig.ConnectionMssql)) // SQL Server connection
+                {
+                    connection.Open();
+
+                    using (var bulkCopy = new SqlBulkCopy(connection))
+                    {
+                        bulkCopy.DestinationTableName = "dbo.MISSING_SEQUENCE_LOG"; 
+
+                        var table = new DataTable();
+                        table.Columns.Add("EXCHANGE", typeof(string));
+                        table.Columns.Add("MSGTYPE", typeof(string));
+                        table.Columns.Add("SEQMISS", typeof(long));
+                        table.Columns.Add("SEQOLD", typeof(long));
+                        table.Columns.Add("SEQNEW", typeof(long));
+                        table.Columns.Add("TIME", typeof(DateTime));
+
+                        foreach (var item in missingLogList)
+                        {
+                            table.Rows.Add(item.Exchange, item.MsgType, item.SeqMiss, item.SeqOld, item.SeqNew, item.Time);
+                        }
+
+                        bulkCopy.WriteToServer(table);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
             }
         }
         public async Task<List<EPrice>> fnc_Update_tblPrice(List<EPrice> lst_eP)
@@ -406,7 +480,7 @@ namespace BaseSaverLib.Implementations
             try
             {
                 DataTable dt = ConvertEPriceListToDataTable(lst_eP);
-                using (var conn = new SqlConnection("Server=10.26.7.31\\MSSQLSERVER2019,1435; Connection Timeout=0;Database=MDDS;User Id=stock6g;Password=stock6g;MultipleActiveResultSets=True;"))
+                using (var conn = new SqlConnection(this._priceConfig.ConnectionMssql))
                 {
                     conn.Open();
                     using (var bulkCopy = new SqlBulkCopy(conn))
@@ -433,7 +507,7 @@ namespace BaseSaverLib.Implementations
             try
             {
                 DataTable dt = ConvertEPriceRecoveryListToDataTable(lst_ePR);
-                using (var conn = new SqlConnection("Server=10.26.7.31\\MSSQLSERVER2019,1435; Connection Timeout=0;Database=MDDS;User Id=stock6g;Password=stock6g;MultipleActiveResultSets=True;"))
+                using (var conn = new SqlConnection(this._priceConfig.ConnectionMssql))
                 {
                     conn.Open();
                     using (var bulkCopy = new SqlBulkCopy(conn))
@@ -652,44 +726,50 @@ namespace BaseSaverLib.Implementations
         /// <param name="msgType"></param>
         /// <param name="rawData"></param>
         /// <returns></returns>
-        public async Task<EBulkScript> ProcessMessage(string msgType, string rawData)
+        public async Task<ProcessMessageResult> ProcessMessage(string msgType, string rawData)
         {
             TExecutionContext ec = this._app.DebugLogger.WriteBufferBegin($"ProcessMessage msgType={msgType}; rawData={rawData}", true);
             try
             {
+                ProcessMessageResult result = new ProcessMessageResult();
                 EBulkScript eBulkScript = new EBulkScript();
+                long sequence = 0;
                 switch (msgType)
                 {
                     // 4.1 - Security Definition
                     case ESecurityDefinition.__MSG_TYPE:
                         ESecurityDefinition eSD = await this.Raw2Entity<ESecurityDefinition>(rawData);
-
+                        sequence = eSD.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptSecurityDefinition(eSD);
-
                         break;
                     // 4.2 - Security Status
                     case ESecurityStatus.__MSG_TYPE:
                         ESecurityStatus eSS = await this.Raw2Entity<ESecurityStatus>(rawData);
+                        sequence = eSS.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptSecurityStatus(eSS);
                         break;
                     // 4.3 - Security Information Notification
                     case ESecurityInformationNotification.__MSG_TYPE:
                         ESecurityInformationNotification eSIN = await this.Raw2Entity<ESecurityInformationNotification>(rawData);
+                        sequence = eSIN.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptSecurityInformationNotification(eSIN);
                         break;
                     // 4.4 - Symbol Closing Information
                     case ESymbolClosingInformation.__MSG_TYPE:
                         ESymbolClosingInformation eSCI = await this.Raw2Entity<ESymbolClosingInformation>(rawData);
+                        sequence = eSCI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptSymbolClosingInformation(eSCI);
                         break;
                     // 4.5 - Volatility Interruption
                     case EVolatilityInterruption.__MSG_TYPE:
                         EVolatilityInterruption eVI = await this.Raw2Entity<EVolatilityInterruption>(rawData);
+                        sequence = eVI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptVolatilityInterruption(eVI);
                         break;
                     // 4.6 - Market Maker Information
                     case EMarketMakerInformation.__MSG_TYPE:
                         EMarketMakerInformation eMMI = await this.Raw2Entity<EMarketMakerInformation>(rawData);
+                        sequence = eMMI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptMarketMakerInformation(eMMI);
                         break;
                     // 4.7 - Symbol Event
@@ -697,17 +777,20 @@ namespace BaseSaverLib.Implementations
                         ESymbolEvent eSE = await this.Raw2Entity<ESymbolEvent>(rawData);
                         eSE.EventStartDate = this._app.Common.FixToDateString(eSE.EventStartDate.ToString());
                         eSE.EventEndDate = this._app.Common.FixToDateString(eSE.EventEndDate.ToString());// can phai chuyen SendingTime tu string sang DateTime											              
+                        sequence = eSE.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptSymbolEvent(eSE);
                         break;
                     // 4.8 - Index Constituents Information
                     case EIndexConstituentsInformation.__MSG_TYPE:
                         EIndexConstituentsInformation eICI = await this.Raw2Entity<EIndexConstituentsInformation>(rawData);
+                        sequence = eICI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptIndexConstituentsInformation(eICI);
                         break;
                     // 4.9 - Random End
                     case ERandomEnd.__MSG_TYPE:
                         ERandomEnd eRE = await this.Raw2Entity<ERandomEnd>(rawData);
                         eRE.TransactTime = this._app.Common.FixToTimeString(eRE.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime											              
+                        sequence = eRE.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptRandomEnd(eRE);
                         break;
                     // 4.10 Price
@@ -726,81 +809,96 @@ namespace BaseSaverLib.Implementations
                         EIndex eI = await this.Raw2Entity<EIndex>(rawData);
                         eI.TransDate = this._app.Common.FixToTransDateString(eI.SendingTime.ToString());
                         eI.TransactTime = this._app.Common.FixToTimeString(eI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime											              
+                        sequence = eI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptIndex(eI);
                         break;
                     // 4.14 - Investor per Industry
                     case EInvestorPerIndustry.__MSG_TYPE:
                         EInvestorPerIndustry eIPI = await this.Raw2Entity<EInvestorPerIndustry>(rawData);
                         eIPI.TransactTime = this._app.Common.FixToTimeString(eIPI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime											              
+                        sequence = eIPI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptInvestorperIndustry(eIPI);
                         break;
 
                     // 4.17 - Investor per Symbol
                     case EInvestorPerSymbol.__MSG_TYPE:
                         EInvestorPerSymbol eIPS = await this.Raw2Entity<EInvestorPerSymbol>(rawData);
+                        sequence = eIPS.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptInvestorperSymbol(eIPS);
                         break;
                     // 4.18 - Top N Members per Symbol
                     case ETopNMembersPerSymbol.__MSG_TYPE:
                         ETopNMembersPerSymbol eTNMPS = await this.Raw2Entity<ETopNMembersPerSymbol>(rawData);
+                        sequence = eTNMPS.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNMembersperSymbol(eTNMPS);
                         break;
                     // 4.19 - Open Interest
                     case EOpenInterest.__MSG_TYPE:
                         EOpenInterest eOI = await this.Raw2Entity<EOpenInterest>(rawData);
                         eOI.TradeDate = this._app.Common.FixToDateString(eOI.TradeDate.ToString());
+                        sequence = eOI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptOpenInterest(eOI);
                         break;
                     // 4.20 - Deem Trade Price
                     case EDeemTradePrice.__MSG_TYPE:
                         EDeemTradePrice eDTP = await this.Raw2Entity<EDeemTradePrice>(rawData);
+                        sequence = eDTP.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptDeemTradePrice(eDTP);
                         break;
                     // 4.21 - Foreigner Order Limit
                     case EForeignerOrderLimit.__MSG_TYPE:
                         EForeignerOrderLimit eFOL = await this.Raw2Entity<EForeignerOrderLimit>(rawData);
+                        sequence = eFOL.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptForeignerOrderLimit(eFOL);
                         break;
                     // 4.22 - Price Limit Expansion
                     case EPriceLimitExpansion.__MSG_TYPE:
                         EPriceLimitExpansion ePLE = await this.Raw2Entity<EPriceLimitExpansion>(rawData);
+                        sequence = ePLE.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptPriceLimitExpansion(ePLE);
                         break;
                     // 4.23 - EETF iNav
                     case EETFiNav.__MSG_TYPE:
                         EETFiNav eEiN = await this.Raw2Entity<EETFiNav>(rawData);
+                        sequence = eEiN.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptETFiNav(eEiN);
                         break;
                     // 4.24 - EETF iIndex
                     case EETFiIndex.__MSG_TYPE:
                         EETFiIndex eEiI = await this.Raw2Entity<EETFiIndex>(rawData);
+                        sequence = eEiI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptETFiIndex(eEiI);
                         break;
                     // 4.25 - EETF TrackingError
                     case EETFTrackingError.__MSG_TYPE:
                         EETFTrackingError eETE = await this.Raw2Entity<EETFTrackingError>(rawData);
                         eETE.TradeDate = this._app.Common.FixToDateString(eETE.TradeDate.ToString());
+                        sequence = eETE.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptETFTrackingError(eETE);
                         break;
                     // 4.26 - Top N Symbols with Trading Quantity
                     case ETopNSymbolsWithTradingQuantity.__MSG_TYPE:
                         ETopNSymbolsWithTradingQuantity ETNSWTQ = await this.Raw2Entity<ETopNSymbolsWithTradingQuantity>(rawData);
+                        sequence = ETNSWTQ.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNSymbolswithTradingQuantity(ETNSWTQ);
                         break;
                     // 4.27 - Top N Symbols with  Current Price
                     case ETopNSymbolsWithCurrentPrice.__MSG_TYPE:
                         ETopNSymbolsWithCurrentPrice ETNSWCP = await this.Raw2Entity<ETopNSymbolsWithCurrentPrice>(rawData);
+                        sequence = ETNSWCP.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNSymbolswithCurrentPrice(ETNSWCP);
                         break;
                     // 4.28 - Top N Symbols with High Ratio of Price
                     case ETopNSymbolsWithHighRatioOfPrice.__MSG_TYPE:
                         ETopNSymbolsWithHighRatioOfPrice ETNSWHROP = await this.Raw2Entity<ETopNSymbolsWithHighRatioOfPrice>(rawData);
+                        sequence = ETNSWHROP.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNSymbolswithHighRatioofPrice(ETNSWHROP);
                         break;
 
                     // 4.29 - Top N Symbols with Low Ratio of Price
                     case ETopNSymbolsWithLowRatioOfPrice.__MSG_TYPE:
                         ETopNSymbolsWithLowRatioOfPrice ETNSWLROP = await this.Raw2Entity<ETopNSymbolsWithLowRatioOfPrice>(rawData);
+                        sequence = ETNSWLROP.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNSymbolswithLowRatioofPrice(ETNSWLROP);
                         break;
                     // 4.30 - Trading Result of Foreign Investors
@@ -809,8 +907,8 @@ namespace BaseSaverLib.Implementations
                         if (ETRFI.TransactTime != null)
                         {
                             ETRFI.TransactTime = this._app.Common.FixToTimeString(ETRFI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime	
+                            sequence = ETRFI.MsgSeqNum;
                         }
-
                         eBulkScript = await _repository.GetScriptTradingResultofForeignInvestors(ETRFI);
                         break;
                     // 4.31 - Disclosure
@@ -818,6 +916,7 @@ namespace BaseSaverLib.Implementations
                         EDisclosure eD = await this.Raw2Entity<EDisclosure>(rawData);
                         eD.PublicInformationDate = this._app.Common.FixToDateString(eD.PublicInformationDate.ToString());
                         eD.TransmissionDate = this._app.Common.FixToDateString(eD.TransmissionDate.ToString());// can phai chuyen SendingTime tu string sang DateTime		
+                        sequence = eD.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptDisclosure(eD);
                         break;
                     // 4.32 - TimeStampPolling
@@ -835,7 +934,9 @@ namespace BaseSaverLib.Implementations
                         break;
                 }
 
-                return eBulkScript;
+                result.Script = eBulkScript;
+                result.MsgSeqNum = sequence;
+                return result;
             }
             catch (Exception ex)
             {
@@ -858,6 +959,7 @@ namespace BaseSaverLib.Implementations
                 dt.Columns.Add("aTargetCompID", typeof(string));
                 dt.Columns.Add("aMsgSeqNum", typeof(string));
                 dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
                 dt.Columns.Add("aMarketID", typeof(string));
                 dt.Columns.Add("aBoardID", typeof(string));
                 dt.Columns.Add("aTradingSessionID", typeof(string));
@@ -1005,6 +1107,7 @@ namespace BaseSaverLib.Implementations
                         // Nếu lỗi format, để NULL
                         row["aSendingTime"] = DBNull.Value;
                     }
+                    row["aCreateTime"] = DateTime.Now; //Gán tg hiện tại
                     row["aMarketID"] = item.MarketID;
                     row["aBoardID"] = item.BoardID;
                     row["aTradingSessionID"] = item.TradingSessionID;
@@ -1158,11 +1261,11 @@ namespace BaseSaverLib.Implementations
                 dt.Columns.Add("aTargetCompID", typeof(string));
                 dt.Columns.Add("aMsgSeqNum", typeof(string));
                 dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
                 dt.Columns.Add("aMarketID", typeof(string));
                 dt.Columns.Add("aBoardID", typeof(string));
                 dt.Columns.Add("aTradingSessionID", typeof(string));
                 dt.Columns.Add("aSymbol", typeof(string));
-
 
                 dt.Columns.Add("aOpnPx", typeof(string));
                 dt.Columns.Add("aTrdSessnHighPx", typeof(string));
@@ -1229,7 +1332,6 @@ namespace BaseSaverLib.Implementations
                 dt.Columns.Add("aBuyPrice10_NOO", typeof(string));
                 dt.Columns.Add("aBuyPrice10_MDEY", typeof(string));
                 dt.Columns.Add("aBuyPrice10_MDEMMS", typeof(string));
-
 
                 dt.Columns.Add("aSellPrice1", typeof(string));
                 dt.Columns.Add("aSellQuantity1", typeof(string));
@@ -1312,6 +1414,7 @@ namespace BaseSaverLib.Implementations
                         // Nếu lỗi format, để NULL
                         row["aSendingTime"] = DBNull.Value;
                     }
+                    row["aCreateTime"] = DateTime.Now;
                     row["aMarketID"] = item.MarketID;
                     row["aBoardID"] = item.BoardID;
                     row["aTradingSessionID"] = item.TradingSessionID;
@@ -1486,9 +1589,12 @@ namespace BaseSaverLib.Implementations
     public class ProcessMessageResult
     {
         public EBulkScript Script { get; set; }
-        public EPrice obj_X { get; set; }
-        public EPriceRecovery obj_W {  get; set; }  
         public long MsgSeqNum { get; set; }
     }
-
+    public class SequenceGapInfo
+    {
+        public long OldSequence { get; set; }
+        public long NewSequence { get; set; }
+        public List<long> MissingSequences { get; set; } = new List<long>();
+    }
 }

@@ -60,27 +60,6 @@ namespace BaseSaverLib.Implementations
         private object m_objLocker = new object();
         private const string TEMPLATE_REDIS_KEY_REALTIME = "REALTIME:S5G_(Symbol)"; //   REALTIME:S5G_ABT
         public const int intPeriod = 43830; //đủ time cho key sống 1 tháng
-        //KL theo thời gian lô chẵn
-        private const string TEMPLATE_REDIS_KEY_LE = "LE:S5G_(Symbol)";       //   LE:S5G_ABT
-        private const string TEMPLATE_REDIS_KEY_LE_TKTT_VOL = "TKTT:VOL:(Symbol):0";
-        private const string TEMPLATE_REDIS_KEY_LE_TKTT_VAL = "TKTT:VAL:(Symbol):0";
-        private const string TEMPLATE_REDIS_KEY_LS = "LS:(Symbol)";
-
-        private const string TEMPLATE_REDIS_KEY_PT = "PT:SYMBOL:(Symbol):(Board)";
-        private const string TEMPLATE_REDIS_KEY_PT_ALL = "PT:ALL:HSX:KL:(Board)";
-        private const string TEMPLATE_REDIS_KEY_PT_SIDE_B = "PT:ALL:HSX:BUY:(Board)";
-        private const string TEMPLATE_REDIS_KEY_PT_SIDE_S = "PT:ALL:HSX:SELL:(Board)";
-
-        private const string TEMPLATE_JSONC_LE = "{\"MT\":\"(MT)\",\"MQ\":(MQ),\"MP\":(MP),\"TQ\":(TQ)}";
-        private const string TEMPLATE_JSONC_LE_TKTT = "{\"MT\":\"(MT)\",\"MP\":(MP),\"TQ\":(TQ),\"TV\":(TV)}";
-        private const string TEMPLATE_JSONC_LS = "{\"MT\":\"(MT)\",\"CN\":(CN),\"MP\":(MP),\"MQ\":(MQ),\"SIDE\":(SIDE)}";
-
-        // lô lẻ hsx
-        public const string TEMPLATE_JSONC_PO = "{\"T\":\"(T)\",\"S\":\"(S)\",\"BP1\":(BP1),\"BQ1\":(BQ1),\"BP2\":(BP2),\"BQ2\":(BQ2),\"BP3\":(BP3),\"BQ3\":(BQ3),\"SP1\":(SP1),\"SQ1\":(SQ1),\"SP2\":(SP2),\"SQ2\":(SQ2),\"SP3\":(SP3),\"SQ3\":(SQ3)}";    //
-        public const string TEMPLATE_REDIS_KEY_PO = "PO:S5G_(Symbol)";
-        public const string TEMPLATE_REDIS_KEY_STOCK_NO_HNX = "Key_StockNo_Saver_HNX";
-        public const string TEMPLATE_REDIS_KEY_STOCK_NO_HSX = "Key_StockNo_Saver_HSX";
-        private const string TEMPLATE_REDIS_VALUE = "{\"Time\":\"(Now)\",\"Data\":[(RedisData)]}";
 
         private readonly CRedisConfig _redisConfig;
         private readonly CRedis_New _redis;
@@ -129,7 +108,10 @@ namespace BaseSaverLib.Implementations
                 {
                     string msgType = this._app.Common.GetMsgType(msg);
                     ProcessMessageResult processMessageResult = ProcessMessage(msgType, msg).GetAwaiter().GetResult();
-                    if (processMessageResult == null) continue;
+                    if (processMessageResult == null) 
+                    {
+                        Console.WriteLine("Error");
+                    }
 
                     long currentSeq = processMessageResult.MsgSeqNum;
                     string groupMsgType = marketDataTypes.Contains(msgType) ? "MarketData" : msgType;
@@ -139,29 +121,6 @@ namespace BaseSaverLib.Implementations
                     {
                         marketDataTypes.Add("MX");
                     }
-
-                    if (processMessageResult.obj_X != null)
-                    {
-                        lst_eP.Add(processMessageResult.obj_X);
-                        continue;
-                    }
-
-                    if (processMessageResult.obj_W != null)
-                    {
-                        lst_ePRecovery.Add(processMessageResult.obj_W);
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(processMessageResult.Script.OracleScript))
-                    {
-                        if (!oracleScriptsByType.TryGetValue(msgType, out var oracleList))
-                        {
-                            oracleList = new List<string>();
-                            oracleScriptsByType[msgType] = oracleList;
-                        }
-                        oracleList.Add(processMessageResult.Script.OracleScript);
-                    }
-
                     //Xử lý log sequence bị miss
                     if (currentSeq == 0 || strExchange == null) continue;
                     try
@@ -206,10 +165,31 @@ namespace BaseSaverLib.Implementations
                             }
                         }
                     }
-                    catch (Exception ex) 
+                    catch (Exception ex)
                     {
                         throw;
-                    }                                       
+                    }
+                    if (processMessageResult.obj_X != null)
+                    {
+                        lst_eP.Add(processMessageResult.obj_X);
+                        continue;
+                    }
+
+                    if (processMessageResult.obj_W != null)
+                    {
+                        lst_ePRecovery.Add(processMessageResult.obj_W);
+                        continue;
+                    }
+
+                    if (!string.IsNullOrEmpty(processMessageResult.Script.OracleScript))
+                    {
+                        if (!oracleScriptsByType.TryGetValue(msgType, out var oracleList))
+                        {
+                            oracleList = new List<string>();
+                            oracleScriptsByType[msgType] = oracleList;
+                        }
+                        oracleList.Add(processMessageResult.Script.OracleScript);
+                    }                                        
                 }
 
                 foreach (var (msgTypes, scripts) in oracleScriptsByType)
@@ -224,7 +204,6 @@ namespace BaseSaverLib.Implementations
                 }
 
                 var parallelTasks = new List<Task>();
-
                 if (dic_missSeq.Count > 0)
                 {
                     parallelTasks.Add(Proc_MissSeq(dic_missSeq));
@@ -1064,12 +1043,12 @@ namespace BaseSaverLib.Implementations
                         sequence = eSD.MsgSeqNum;
                         strExchange = eSD.MarketID;
                         // Lấy ra key msg lưu db
-                        if ((eSD.MarketID == "STX" || eSD.MarketID == "UPX" || eSD.MarketID == "DVX") && eSD.BoardID == "G1" && !d_dic_stockno.ContainsKey(eSD.Symbol))
-                        {
-                            d_dic_stockno[eSD.Symbol] = eSD.TickerCode;
-                            string stockno = JsonConvert.SerializeObject(d_dic_stockno);
-                            _redis.SetCacheBI(TEMPLATE_REDIS_KEY_STOCK_NO_HNX, stockno, intPeriod);
-                        }
+                        //if ((eSD.MarketID == "STX" || eSD.MarketID == "UPX" || eSD.MarketID == "DVX") && eSD.BoardID == "G1" && !d_dic_stockno.ContainsKey(eSD.Symbol))
+                        //{
+                        //    d_dic_stockno[eSD.Symbol] = eSD.TickerCode;
+                        //    string stockno = JsonConvert.SerializeObject(d_dic_stockno);
+                        //    _redis.SetCacheBI(TEMPLATE_REDIS_KEY_STOCK_NO_HNX, stockno, intPeriod);
+                        //}
                         eBulkScript = await _repository.GetScriptSecurityDefinition(eSD);
 
                         break;

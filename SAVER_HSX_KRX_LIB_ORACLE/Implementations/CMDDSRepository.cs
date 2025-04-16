@@ -92,15 +92,8 @@ namespace BaseSaverLib.Implementations
             Stopwatch m_SW = Stopwatch.StartNew();
             try
             {
-                //await Task.WhenAll(mssqlTask, oracleTask);
-                //var mssqlTask = this._mssql.ExecuteScriptOracle(mssqlScript);
-                //var oracleTask = this._oracle.ExecuteScriptOracle(oracleScript);
-
-                // Chờ cả hai hoàn thành
-                //var results = await Task.WhenAll(mssqlTask, oracleTask);
-
                 await this._oracle.ExecuteScriptOracle(oracleScript);
-                //Console.WriteLine("WHENALL_TIMER_" + m_SW.ElapsedMilliseconds.ToString());
+                Console.WriteLine("WHENALL_TIMER_________: " + m_SW.ElapsedMilliseconds.ToString());
 
                 return true;
             }

@@ -47,9 +47,9 @@ namespace BaseSaverLib.Implementations
         public HashSet<string> marketDataTypes = new HashSet<string> { "X", "MF", "M8", "ME", "M7", "f" };
 
         // Dic lưu sequence trước theo msgType
-        private readonly Dictionary<string,Dictionary<string,long>> dic_preSeq = new Dictionary<string,Dictionary<string,long>>();
+        //private readonly Dictionary<string,Dictionary<string,long>> dic_preSeq = new Dictionary<string,Dictionary<string,long>>();
         // Dic lưu danh sách các sequence bị thiếu theo msgType
-        private readonly Dictionary<string,Dictionary<string,SequenceGapInfo>> dic_missSeq = new Dictionary<string, Dictionary<string, SequenceGapInfo>>();
+        //private readonly Dictionary<string,Dictionary<string,SequenceGapInfo>> dic_missSeq = new Dictionary<string, Dictionary<string, SequenceGapInfo>>();
         Stopwatch m_SW = new Stopwatch();
 
         // vars
@@ -101,74 +101,15 @@ namespace BaseSaverLib.Implementations
                 var oracleCommit = EGlobalConfig.__STRING_ORACLE_COMMIT;
                 var oracleEndBlock = EGlobalConfig.__STRING_ORACLE_BLOCK_END;
                 var oracleNewLineTab = $"{EGlobalConfig.__STRING_RETURN_NEW_LINE}{EGlobalConfig.__STRING_TAB}{EGlobalConfig.__STRING_SPACE}";
-
                 var SW_RD = Stopwatch.StartNew();
 
                 foreach (string msg in arrMsg)
                 {
                     string msgType = this._app.Common.GetMsgType(msg);
                     ProcessMessageResult processMessageResult = ProcessMessage(msgType, msg).GetAwaiter().GetResult();
-                    if (processMessageResult == null) 
-                    {
-                        Console.WriteLine("Error");
-                    }
+                    if (processMessageResult == null)
+                        continue;                    
 
-                    long currentSeq = processMessageResult.MsgSeqNum;
-                    string groupMsgType = marketDataTypes.Contains(msgType) ? "MarketData" : msgType;
-                    string strExchange = processMessageResult.strExchange;
-                    // Nếu là DVX thì bổ sung thêm "MX" vào danh sách MarketData
-                    if (strExchange == "DVX" && !marketDataTypes.Contains("MX"))
-                    {
-                        marketDataTypes.Add("MX");
-                    }
-                    //Xử lý log sequence bị miss
-                    if (currentSeq == 0 || strExchange == null) continue;
-                    try
-                    {
-                        if (msgType != "M1")
-                        {
-                            // Khởi tạo dictionary nếu chưa có
-                            if (!dic_preSeq.ContainsKey(strExchange))
-                                dic_preSeq[strExchange] = new Dictionary<string, long>();
-
-                            if (!dic_preSeq[strExchange].TryGetValue(groupMsgType, out long lastSeq))
-                            {
-                                // Lần đầu tiên thấy groupMsgType này
-                                dic_preSeq[strExchange][groupMsgType] = currentSeq;
-                            }
-                            else
-                            {
-                                if (currentSeq > lastSeq + 1)
-                                {
-                                    var gapInfo = new SequenceGapInfo
-                                    {
-                                        OldSequence = lastSeq,
-                                        NewSequence = currentSeq
-                                    };
-
-                                    for (long missing = lastSeq + 1; missing < currentSeq; missing++)
-                                    {
-                                        gapInfo.MissingSequences.Add(missing);
-                                        this._app.SqlLogger.LogSciptSQL(
-                                            $"SEQ_MISS_{strExchange}_{groupMsgType}",
-                                            $"Missing Sequence: {missing} (Old: {lastSeq}, New: {currentSeq})"
-                                        );
-                                    }
-
-                                    if (!dic_missSeq.ContainsKey(strExchange))
-                                        dic_missSeq[strExchange] = new Dictionary<string, SequenceGapInfo>();
-
-                                    dic_missSeq[strExchange][groupMsgType] = gapInfo;
-                                }
-
-                                dic_preSeq[strExchange][groupMsgType] = currentSeq;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        throw;
-                    }
                     if (processMessageResult.obj_X != null)
                     {
                         lst_eP.Add(processMessageResult.obj_X);
@@ -204,11 +145,6 @@ namespace BaseSaverLib.Implementations
                 }
 
                 var parallelTasks = new List<Task>();
-                if (dic_missSeq.Count > 0)
-                {
-                    parallelTasks.Add(Proc_MissSeq(dic_missSeq));
-                    dic_missSeq.Clear();
-                }
 
                 if (lst_eP.Count > 0)
                 {

@@ -44,12 +44,12 @@ namespace BaseSaverLib.Implementations
         private ConcurrentQueue<EPrice> m_queueRedis = new ConcurrentQueue<EPrice>();
         private ConcurrentQueue<SqlMessage> m_queueSQL = new ConcurrentQueue<SqlMessage>();
         private ConcurrentQueue<SqlMessageWithObj> m_queueOracle = new ConcurrentQueue<SqlMessageWithObj>();
-        public HashSet<string> marketDataTypes = new HashSet<string> { "X", "MF", "M8", "ME", "M7", "f" };
+        //public HashSet<string> marketDataTypes = new HashSet<string> { "X", "MF", "M8", "ME", "M7", "f" };
 
         // Dic lưu sequence trước theo msgType
-        private readonly Dictionary<string, long> dic_preSeq = new Dictionary<string, long>();
+        //private readonly Dictionary<string, long> dic_preSeq = new Dictionary<string, long>();
         // Dic lưu danh sách các sequence bị thiếu theo msgType
-        private readonly Dictionary<string, SequenceGapInfo> dic_missSeq = new Dictionary<string, SequenceGapInfo>();
+        //private readonly Dictionary<string, SequenceGapInfo> dic_missSeq = new Dictionary<string, SequenceGapInfo>();
         Stopwatch m_SW = new Stopwatch();
 
         // vars
@@ -110,35 +110,6 @@ namespace BaseSaverLib.Implementations
                     ProcessMessageResult processMessageResult = ProcessMessage(msgType, msg).GetAwaiter().GetResult();
                     if (processMessageResult == null) continue;
 
-                    string groupMsgType = marketDataTypes.Contains(msgType) ? "MarketData" : msgType;
-                    long currentSeq = processMessageResult.MsgSeqNum;
-
-                    if (msgType != "M1")
-                    {
-                        if (dic_preSeq.TryGetValue(groupMsgType, out long lastSeq))
-                        {
-                            if (currentSeq > lastSeq + 1)
-                            {
-                                var gapInfo = new SequenceGapInfo
-                                {
-                                    OldSequence = lastSeq,
-                                    NewSequence = currentSeq
-                                };
-                                for (long missing = lastSeq + 1; missing < currentSeq; missing++)
-                                {
-                                    gapInfo.MissingSequences.Add(missing);
-                                    this._app.SqlLogger.LogSciptSQL($"AAA_Oracle_{groupMsgType}", $"Check_Sequence: OldSequence: {lastSeq} - MissingSequence: {missing}");
-                                }
-                                dic_missSeq[groupMsgType] = gapInfo;
-                            }
-                            dic_preSeq[groupMsgType] = currentSeq;
-                        }
-                        else
-                        {
-                            dic_preSeq[groupMsgType] = currentSeq;
-                        }
-                    }
-
                     if (processMessageResult.obj_X != null)
                     {
                         lst_eP.Add(processMessageResult.obj_X);
@@ -161,7 +132,6 @@ namespace BaseSaverLib.Implementations
                         oracleList.Add(processMessageResult.Script.OracleScript);
                     }
                 }
-
                 foreach (var (msgTypes, scripts) in oracleScriptsByType)
                 {
                     var oracleBatchBuilder = new StringBuilder(oracleBeginBlock);
@@ -174,12 +144,6 @@ namespace BaseSaverLib.Implementations
                 }
 
                 var parallelTasks = new List<Task>();
-
-                if (dic_missSeq.Count > 0)
-                {
-                    parallelTasks.Add(Proc_MissSeq(dic_missSeq));
-                    dic_missSeq.Clear();
-                }
 
                 if (lst_eP.Count > 0)
                 {
@@ -220,157 +184,7 @@ namespace BaseSaverLib.Implementations
                 _semaphore.Release();
             }
         }
-
-        //public async Task<bool> BuildScriptSQL(string[] arrMsg)
-        //{
-        //    await _semaphore.WaitAsync();
-        //    try
-        //    {
-        //        List<EPrice> lst_eP = new List<EPrice>();
-        //        List<EPriceRecovery> lst_ePRecovery = new List<EPriceRecovery>();
-        //        var oracleScriptsByType = new Dictionary<string, List<string>>();
-        //        var ScriptOracle = new List<string>();
-
-        //        var oracleBeginBlock = EGlobalConfig.__STRING_ORACLE_BLOCK_BEGIN;
-        //        var oracleCommit = EGlobalConfig.__STRING_ORACLE_COMMIT;
-        //        var oracleEndBlock = EGlobalConfig.__STRING_ORACLE_BLOCK_END;
-        //        var oracleNewLineTab = $"{EGlobalConfig.__STRING_RETURN_NEW_LINE}{EGlobalConfig.__STRING_TAB}{EGlobalConfig.__STRING_SPACE}";
-        //        var SW_RD = Stopwatch.StartNew();
-        //        // Duyệt từng tin nhắn và nhóm theo msgType
-        //        foreach (string msg in arrMsg)
-        //        {
-        //            //Log Dequeue
-        //            //this._app.InfoLogger.LogInfo(msg);
-        //            string msgType = this._app.Common.GetMsgType(msg);
-
-        //            //var eBulkScript = await ProcessMessage(msgType, msg);
-        //            ProcessMessageResult processMessageResult = ProcessMessage(msgType, msg).GetAwaiter().GetResult();
-
-        //            if (processMessageResult == null) continue;
-
-        //            string groupMsgType = marketDataTypes.Contains(msgType) ? "MarketData" : msgType;
-        //            //So sanh seq new >< old
-        //            long currentSeq = processMessageResult.MsgSeqNum;
-
-        //            if(msgType != "M1")
-        //            {
-        //                if (dic_preSeq.TryGetValue(groupMsgType, out long lastSeq))
-        //                {
-        //                    if (currentSeq > lastSeq + 1)
-        //                    {
-        //                        var gapInfo = new SequenceGapInfo
-        //                        {
-        //                            OldSequence = lastSeq,
-        //                            NewSequence = currentSeq
-        //                        };
-        //                        for (long missing = lastSeq + 1; missing < currentSeq; missing++)
-        //                        {
-        //                            gapInfo.MissingSequences.Add(missing);
-
-        //                            this._app.SqlLogger.LogSciptSQL($"AAA_Oracle_{groupMsgType}", $"Check_Sequence: OldSequence: {lastSeq} - MissingSequence: {missing}");
-        //                        }
-        //                        dic_missSeq[groupMsgType] = gapInfo;
-        //                    }
-        //                    // Sau khi xử lý missing sequence, cập nhật lại sequence mới nhất
-        //                    dic_preSeq[groupMsgType] = currentSeq;
-        //                }
-        //                else
-        //                {
-        //                    // Lần đầu thấy groupMsgType này, khởi tạo sequence
-        //                    dic_preSeq[groupMsgType] = currentSeq;
-        //                }
-        //            }
-
-        //            //thêm vào list_msgX
-        //            if (processMessageResult.obj_X != null) 
-        //            {
-        //                lst_eP.Add(processMessageResult.obj_X);
-        //                continue;
-        //            }
-        //            //thêm vào list_msgW
-        //            if (processMessageResult.obj_W != null)
-        //            {
-        //                lst_ePRecovery.Add(processMessageResult.obj_W);
-        //                continue;
-        //            }
-
-        //            if (!string.IsNullOrEmpty(processMessageResult.Script.OracleScript))
-        //            {
-        //                if (!oracleScriptsByType.TryGetValue(msgType, out var oracleList))
-        //                {
-        //                    oracleList = new List<string>();
-        //                    oracleScriptsByType[msgType] = oracleList;
-        //                }
-        //                oracleList.Add(processMessageResult.Script.OracleScript);
-        //            }
-        //        }
-
-        //        // Tạo batch script cho Oracle
-        //        foreach (var (msgTypes, scripts) in oracleScriptsByType)
-        //        {
-        //            var oracleBatchBuilder = new StringBuilder(oracleBeginBlock);
-        //            foreach (var script in scripts)
-        //            {
-        //                oracleBatchBuilder.Append(oracleNewLineTab).Append(script);
-        //            }
-        //            oracleBatchBuilder.Append(oracleCommit).Append(oracleEndBlock);
-
-        //            //this._app.SqlLogger.LogSql(oracleBatchBuilder.ToString());
-        //            ScriptOracle.Add(oracleBatchBuilder.ToString());
-        //            // Ghi log Oracle các nhóm khác
-        //            //this._app.SqlLogger.LogSciptSQL($"Oracle_{msgTypes}", oracleBatchBuilder.ToString());
-
-        //            //Ghi log count
-        //            //this._app.SqlLogger.LogSciptSQL($"Oracle_{msgTypes}", $"{oracleBatchBuilder.ToString().Length}");
-        //        }
-        //        //Hàm xử lý insert rớt sequence
-        //        if (dic_missSeq.Count > 0)
-        //        {
-        //            await Proc_MissSeq(dic_missSeq);
-        //            //clear dic 
-        //            dic_missSeq.Clear();    
-        //        }       
-        //        if (lst_eP.Count > 0)
-        //        {
-        //            var updateTask = Oracle_BulkUpdate_msgX(lst_eP);
-        //            var insertTask = Oracle_BulkIns_msgX(lst_eP);
-
-        //            await Task.WhenAll(updateTask, insertTask);
-        //        }
-        //        if (lst_ePRecovery.Count > 0)
-        //        {
-        //            var updateTask = Oracle_BulkUpdate_msgW(lst_ePRecovery);
-        //            var insertTask = Oracle_BulkIns_msgW(lst_ePRecovery);
-
-        //            await Task.WhenAll(updateTask, insertTask);
-        //        }
-
-        //        // Thực thi batch scripts
-        //        if (ScriptOracle.Any())
-        //        {
-        //            await this._repository.ExecBulkScript(ScriptOracle);
-
-        //            this._monitor.SendStatusToMonitor(
-        //                this._app.Common.GetLocalDateTime(),
-        //                this._app.Common.GetLocalIp(),
-        //                CMonitor.MONITOR_APP.HSX_Saver5G,
-        //                arrMsg.Length,
-        //                SW_RD.ElapsedMilliseconds
-        //            );
-        //        }
-
-        //        return true;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        this._app.ErrorLogger.LogError(ex);
-        //        return false;
-        //    }
-        //    finally
-        //    {
-        //        _semaphore.Release();
-        //    }
-        //}
+      
         public async Task Proc_MissSeq(Dictionary<string, SequenceGapInfo> dic_Seq)
         {
             try

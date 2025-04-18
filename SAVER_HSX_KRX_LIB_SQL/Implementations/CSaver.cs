@@ -200,7 +200,7 @@ namespace BaseSaverLib.Implementations
                 }
                 if (_msgArray != null)
                 {
-                    HandlerMsgArr(_msgArray);
+                    this._handler.BuildScriptSQL(_msgArray);
                 }
             }
             catch (Exception ex)
@@ -208,17 +208,17 @@ namespace BaseSaverLib.Implementations
                 this._app.ErrorLogger.LogError(ex);
             }
         }
-        private void HandlerMsgArr(string[] arrMsg)
-        {
-            try
-            {
-                this._handler.BuildScriptSQL(arrMsg);
-            }
-            catch (Exception ex)
-            {
-                this._app.ErrorLogger.LogError(ex);
-            }
-        }
+        //private void HandlerMsgArr(string[] arrMsg)
+        //{
+        //    try
+        //    {
+        //        this._handler.BuildScriptSQL(arrMsg);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        this._app.ErrorLogger.LogError(ex);
+        //    }
+        //}
         /// <summary>
         /// 2020-08-31 16:23:51 ngocta2
         /// fast speed

@@ -89,7 +89,7 @@ namespace BaseSaverLib.Implementations
         }
         public async Task<bool> BuildScriptSQL(string[] arrMsg)
         {
-            await _semaphore.WaitAsync();
+            await semaphoreORACLE.WaitAsync();
             try
             {
                 List<EPrice> lst_eP = new List<EPrice>();
@@ -101,14 +101,14 @@ namespace BaseSaverLib.Implementations
                 var oracleCommit = EGlobalConfig.__STRING_ORACLE_COMMIT;
                 var oracleEndBlock = EGlobalConfig.__STRING_ORACLE_BLOCK_END;
                 var oracleNewLineTab = $"{EGlobalConfig.__STRING_RETURN_NEW_LINE}{EGlobalConfig.__STRING_TAB}{EGlobalConfig.__STRING_SPACE}";
-
+                int count = 0;
                 var SW_RD = Stopwatch.StartNew();
 
                 foreach (string msg in arrMsg)
                 {
                     string msgType = this._app.Common.GetMsgType(msg);
                     ProcessMessageResult processMessageResult = ProcessMessage(msgType, msg).GetAwaiter().GetResult();
-                    if (processMessageResult == null) continue;
+                    //if (processMessageResult == null) continue;
 
                     if (processMessageResult.obj_X != null)
                     {
@@ -121,56 +121,62 @@ namespace BaseSaverLib.Implementations
                         lst_ePRecovery.Add(processMessageResult.obj_W);
                         continue;
                     }
-
-                    if (!string.IsNullOrEmpty(processMessageResult.Script.OracleScript))
+                    if (!oracleScriptsByType.TryGetValue(msgType, out var oracleList))
                     {
-                        if (!oracleScriptsByType.TryGetValue(msgType, out var oracleList))
-                        {
-                            oracleList = new List<string>();
-                            oracleScriptsByType[msgType] = oracleList;
-                        }
-                        oracleList.Add(processMessageResult.Script.OracleScript);
+                        oracleList = new List<string>();
+                        oracleScriptsByType[msgType] = oracleList;
                     }
+                    oracleList.Add(processMessageResult.Script.OracleScript);
+                    count++;
                 }
-                foreach (var (msgTypes, scripts) in oracleScriptsByType)
-                {
-                    var oracleBatchBuilder = new StringBuilder(oracleBeginBlock);
-                    foreach (var script in scripts)
-                    {
-                        oracleBatchBuilder.Append(oracleNewLineTab).Append(script);
-                    }
-                    oracleBatchBuilder.Append(oracleCommit).Append(oracleEndBlock);
-                    ScriptOracle.Add(oracleBatchBuilder.ToString());
-                }
-
-                var parallelTasks = new List<Task>();
 
                 if (lst_eP.Count > 0)
                 {
-                    parallelTasks.Add(Oracle_BulkUpdate_msgX(lst_eP));
-                    parallelTasks.Add(Oracle_BulkIns_msgX(lst_eP));
+                    var updateTask_X = Oracle_BulkUpdate_msgX(lst_eP);
+                    var insertTask_X = Oracle_BulkIns_msgX(lst_eP);
+
+                    await Task.WhenAll(updateTask_X, insertTask_X);
                 }
 
                 if (lst_ePRecovery.Count > 0)
                 {
-                    parallelTasks.Add(Oracle_BulkUpdate_msgW(lst_ePRecovery));
-                    parallelTasks.Add(Oracle_BulkIns_msgW(lst_ePRecovery));
-                }
+                    var updateTask_W = Oracle_BulkUpdate_msgW(lst_ePRecovery);
+                    var insertTask_W = Oracle_BulkIns_msgW(lst_ePRecovery);
 
-                if (ScriptOracle.Any())
+                    await Task.WhenAll(updateTask_W, insertTask_W);
+                }
+                //Console.WriteLine("DONE_TASK_X_W______________: " + SW_RD.ElapsedMilliseconds.ToString());
+                if (count > 0)
                 {
-                    parallelTasks.Add(this._repository.ExecBulkScript(ScriptOracle));
-                }
+                    int batchSizePerTransaction = 200;
+                    foreach (var (msgTypes, scripts) in oracleScriptsByType)
+                    {
+                        for (int i = 0; i < scripts.Count; i += batchSizePerTransaction)
+                        {
+                            var scriptsBatch = scripts.Skip(i).Take(batchSizePerTransaction);
+                            var oracleBatchBuilder = new StringBuilder(oracleBeginBlock);
 
-                await Task.WhenAll(parallelTasks);
+                            foreach (var script in scriptsBatch)
+                            {
+                                oracleBatchBuilder.Append(oracleNewLineTab).Append(script);
+                            }
+
+                            oracleBatchBuilder.Append(oracleCommit).Append(oracleEndBlock);
+
+                            ScriptOracle.Add(oracleBatchBuilder.ToString());
+                             
+                            this._app.SqlLogger.LogSciptSQL($"Oracle_{msgTypes}", $"{oracleBatchBuilder.ToString().Length}");
+                        }
+                    }
+                    await this._repository.ExecBulkScript_Oracle(ScriptOracle);
+                }
 
                 this._monitor.SendStatusToMonitor(
-                    this._app.Common.GetLocalDateTime(),
-                    this._app.Common.GetLocalIp(),
-                    CMonitor.MONITOR_APP.HSX_Saver5G,
-                    arrMsg.Length,
-                    SW_RD.ElapsedMilliseconds
-                );
+                this._app.Common.GetLocalDateTime(),
+                this._app.Common.GetLocalIp(),
+                CMonitor.MONITOR_APP.HSX_Saver5G,
+                arrMsg.Length,
+                SW_RD.ElapsedMilliseconds);
 
                 return true;
             }
@@ -181,10 +187,10 @@ namespace BaseSaverLib.Implementations
             }
             finally
             {
-                _semaphore.Release();
+                semaphoreORACLE.Release();
             }
         }
-      
+
         public async Task Proc_MissSeq(Dictionary<string, SequenceGapInfo> dic_Seq)
         {
             try
@@ -407,7 +413,7 @@ namespace BaseSaverLib.Implementations
                                 using (var bulkCopy = new OracleBulkCopy(conn))
                                 {
                                     bulkCopy.DestinationTableName = "table_temporary_X_HSX";
-                                    bulkCopy.BatchSize = 5000;
+                                    bulkCopy.BatchSize = 2000;
 
                                     foreach (DataColumn col in dt.Columns)
                                     {
@@ -422,12 +428,12 @@ namespace BaseSaverLib.Implementations
                             {
                                 Console.WriteLine("Bulk insert lỗi: " + ex.Message);
                             }
-                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X_HSX", conn))
-                            {
-                                checkCmd.Transaction = transaction;
-                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                                Console.WriteLine("Số dòng trong bảng tạm MSG_X: " + count);
-                            }
+                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X_HSX", conn))
+                            //{
+                            //    checkCmd.Transaction = transaction;
+                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            //}
                             // Gọi stored procedure để insert/update dữ liệu vào bảng chính
                             using (OracleCommand cmdProc = new OracleCommand("PROC_MERGE_MSG_X_HSX", conn))
                             {
@@ -496,7 +502,7 @@ namespace BaseSaverLib.Implementations
                     }
                 }
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 this._app.ErrorLogger.LogError(ex);
             }
@@ -672,7 +678,7 @@ namespace BaseSaverLib.Implementations
                                 using (var bulkCopy = new OracleBulkCopy(conn))
                                 {
                                     bulkCopy.DestinationTableName = "table_temporary_W_HSX";
-                                    bulkCopy.BatchSize = 5000;
+                                    bulkCopy.BatchSize = 2000;
 
                                     foreach (DataColumn col in dt.Columns)
                                     {
@@ -687,12 +693,12 @@ namespace BaseSaverLib.Implementations
                             {
                                 Console.WriteLine("Bulk insert lỗi: " + ex.Message);
                             }
-                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
-                            //{
-                            //    checkCmd.Transaction = transaction;
-                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            //}
+                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
+                            {
+                                checkCmd.Transaction = transaction;
+                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            }
                             // Gọi stored procedure để insert/update dữ liệu vào bảng chính
                             using (OracleCommand cmdProc = new OracleCommand("PROC_MERGE_MSG_W_HSX", conn))
                             {
@@ -713,12 +719,12 @@ namespace BaseSaverLib.Implementations
                                 cmdTruncate.Transaction = transaction;
                                 cmdTruncate.ExecuteNonQuery();
                             }
-                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
-                            //{
-                            //    checkCmd.Transaction = transaction;
-                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            //}
+                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
+                            {
+                                checkCmd.Transaction = transaction;
+                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            }
                             // Commit transaction sau khi tất cả các thao tác thành công
                             transaction.Commit();
                         }
@@ -763,7 +769,7 @@ namespace BaseSaverLib.Implementations
             {
                 this._app.ErrorLogger.LogError(ex);
             }
-        }        
+        }
 
         /// <summary>
         /// 2020-08-19 09:23:03 ngocta2
@@ -808,13 +814,13 @@ namespace BaseSaverLib.Implementations
                 EBulkScript eBulkScript = new EBulkScript();
                 EPrice ePrice = null;
                 EPriceRecovery ePRecovery = null;
-                long sequence = 0;
+                //long sequence = 0;
                 switch (msgType)
                 {
                     // 4.1 - Security Definition
                     case ESecurityDefinition.__MSG_TYPE:
                         ESecurityDefinition eSD = await this.Raw2Entity<ESecurityDefinition>(rawData);
-                        sequence = eSD.MsgSeqNum;
+                        //sequence = eSD.MsgSeqNum;
                         // Lấy ra key msg lưu db
                         //if ((eSD.MarketID == "STO") && eSD.BoardID == "G1" && !d_dic_stockno.ContainsKey(eSD.Symbol))
                         //{
@@ -828,31 +834,31 @@ namespace BaseSaverLib.Implementations
                     // 4.2 - Security Status
                     case ESecurityStatus.__MSG_TYPE:
                         ESecurityStatus eSS = await this.Raw2Entity<ESecurityStatus>(rawData);
-                        sequence = eSS.MsgSeqNum;
+                        //sequence = eSS.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptSecurityStatus(eSS);
                         break;
                     // 4.3 - Security Information Notification
                     case ESecurityInformationNotification.__MSG_TYPE:
                         ESecurityInformationNotification eSIN = await this.Raw2Entity<ESecurityInformationNotification>(rawData);
-                        sequence = eSIN.MsgSeqNum;
+                        //sequence = eSIN.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptSecurityInformationNotification(eSIN);
                         break;
                     // 4.4 - Symbol Closing Information
                     case ESymbolClosingInformation.__MSG_TYPE:
                         ESymbolClosingInformation eSCI = await this.Raw2Entity<ESymbolClosingInformation>(rawData);
-                        sequence = eSCI.MsgSeqNum;
+                        //sequence = eSCI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptSymbolClosingInformation(eSCI);
                         break;
                     // 4.5 - Volatility Interruption
                     case EVolatilityInterruption.__MSG_TYPE:
                         EVolatilityInterruption eVI = await this.Raw2Entity<EVolatilityInterruption>(rawData);
-                        sequence = eVI.MsgSeqNum;
+                        //sequence = eVI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptVolatilityInterruption(eVI);
                         break;
                     // 4.6 - Market Maker Information
                     case EMarketMakerInformation.__MSG_TYPE:
                         EMarketMakerInformation eMMI = await this.Raw2Entity<EMarketMakerInformation>(rawData);
-                        sequence = eMMI.MsgSeqNum;
+                        //sequence = eMMI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptMarketMakerInformation(eMMI);
                         break;
                     // 4.7 - Symbol Event
@@ -860,33 +866,33 @@ namespace BaseSaverLib.Implementations
                         ESymbolEvent eSE = await this.Raw2Entity<ESymbolEvent>(rawData);
                         eSE.EventStartDate = this._app.Common.FixToDateString(eSE.EventStartDate.ToString());
                         eSE.EventEndDate = this._app.Common.FixToDateString(eSE.EventEndDate.ToString());// can phai chuyen SendingTime tu string sang DateTime											              
-                        sequence = eSE.MsgSeqNum;
+                        //sequence = eSE.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptSymbolEvent(eSE);
                         break;
                     // 4.8 - Index Constituents Information
                     case EIndexConstituentsInformation.__MSG_TYPE:
                         EIndexConstituentsInformation eICI = await this.Raw2Entity<EIndexConstituentsInformation>(rawData);
-                        sequence = eICI.MsgSeqNum;
+                        //sequence = eICI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptIndexConstituentsInformation(eICI);
                         break;
                     // 4.9 - Random End
                     case ERandomEnd.__MSG_TYPE:
                         ERandomEnd eRE = await this.Raw2Entity<ERandomEnd>(rawData);
                         eRE.TransactTime = this._app.Common.FixToTimeString(eRE.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime											              
-                        sequence = eRE.MsgSeqNum;
+                        //sequence = eRE.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptRandomEnd(eRE);
                         break;
                     // 4.10 Price
                     case EPrice.__MSG_TYPE:
                         EPrice eP = this._app.HandCode.Fix_Fix2EPrice(rawData, true, 1, 2, 1);
-                        sequence = eP.MsgSeqNum;
+                        //sequence = eP.MsgSeqNum;
                         ePrice = eP;
                         eBulkScript = await _repository.GetScriptPriceAll(eP);
                         break;
                     // 4.11 Price Recovery
                     case EPriceRecovery.__MSG_TYPE:
                         EPriceRecovery ePR = this._app.HandCode.Fix_Fix2EPriceRecovery(rawData, true, 1, 2, 1);
-                        sequence = ePR.MsgSeqNum;
+                        //sequence = ePR.MsgSeqNum;
                         ePRecovery = ePR;
                         eBulkScript = await _repository.GetScriptPriceRecoveryAll(ePR);
                         break;
@@ -895,96 +901,96 @@ namespace BaseSaverLib.Implementations
                         EIndex eI = await this.Raw2Entity<EIndex>(rawData);
                         eI.TransDate = this._app.Common.FixToTransDateString(eI.SendingTime.ToString());
                         eI.TransactTime = this._app.Common.FixToTimeString(eI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime
-                        sequence = eI.MsgSeqNum;                                                                            // 											              
+                        //sequence = eI.MsgSeqNum;                                                                            // 											              
                         eBulkScript = await _repository.GetScriptIndex(eI);
                         break;
                     // 4.14 - Investor per Industry
                     case EInvestorPerIndustry.__MSG_TYPE:
                         EInvestorPerIndustry eIPI = await this.Raw2Entity<EInvestorPerIndustry>(rawData);
                         eIPI.TransactTime = this._app.Common.FixToTimeString(eIPI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime											              
-                        sequence = eIPI.MsgSeqNum;
+                        //sequence = eIPI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptInvestorperIndustry(eIPI);
                         break;
 
                     // 4.17 - Investor per Symbol
                     case EInvestorPerSymbol.__MSG_TYPE:
                         EInvestorPerSymbol eIPS = await this.Raw2Entity<EInvestorPerSymbol>(rawData);
-                        sequence = eIPS.MsgSeqNum;
+                        //sequence = eIPS.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptInvestorperSymbol(eIPS);
                         break;
                     // 4.18 - Top N Members per Symbol
                     case ETopNMembersPerSymbol.__MSG_TYPE:
                         ETopNMembersPerSymbol eTNMPS = await this.Raw2Entity<ETopNMembersPerSymbol>(rawData);
-                        sequence = eTNMPS.MsgSeqNum;
+                        //sequence = eTNMPS.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNMembersperSymbol(eTNMPS);
                         break;
                     // 4.19 - Open Interest
                     case EOpenInterest.__MSG_TYPE:
                         EOpenInterest eOI = await this.Raw2Entity<EOpenInterest>(rawData);
                         eOI.TradeDate = this._app.Common.FixToDateString(eOI.TradeDate.ToString());
-                        sequence = eOI.MsgSeqNum;
+                        //sequence = eOI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptOpenInterest(eOI);
                         break;
                     // 4.20 - Deem Trade Price
                     case EDeemTradePrice.__MSG_TYPE:
                         EDeemTradePrice eDTP = await this.Raw2Entity<EDeemTradePrice>(rawData);
-                        sequence = eDTP.MsgSeqNum;
+                        //sequence = eDTP.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptDeemTradePrice(eDTP);
                         break;
                     // 4.21 - Foreigner Order Limit
                     case EForeignerOrderLimit.__MSG_TYPE:
                         EForeignerOrderLimit eFOL = await this.Raw2Entity<EForeignerOrderLimit>(rawData);
-                        sequence = eFOL.MsgSeqNum;
+                        //sequence = eFOL.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptForeignerOrderLimit(eFOL);
                         break;
                     // 4.22 - Price Limit Expansion
                     case EPriceLimitExpansion.__MSG_TYPE:
                         EPriceLimitExpansion ePLE = await this.Raw2Entity<EPriceLimitExpansion>(rawData);
-                        sequence = ePLE.MsgSeqNum;
+                        //sequence = ePLE.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptPriceLimitExpansion(ePLE);
                         break;
                     // 4.23 - EETF iNav
                     case EETFiNav.__MSG_TYPE:
                         EETFiNav eEiN = await this.Raw2Entity<EETFiNav>(rawData);
-                        sequence = eEiN.MsgSeqNum;
+                        //sequence = eEiN.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptETFiNav(eEiN);
                         break;
                     // 4.24 - EETF iIndex
                     case EETFiIndex.__MSG_TYPE:
                         EETFiIndex eEiI = await this.Raw2Entity<EETFiIndex>(rawData);
-                        sequence = eEiI.MsgSeqNum;
+                        //sequence = eEiI.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptETFiIndex(eEiI);
                         break;
                     // 4.25 - EETF TrackingError
                     case EETFTrackingError.__MSG_TYPE:
                         EETFTrackingError eETE = await this.Raw2Entity<EETFTrackingError>(rawData);
                         eETE.TradeDate = this._app.Common.FixToDateString(eETE.TradeDate.ToString());
-                        sequence = eETE.MsgSeqNum;
+                        //sequence = eETE.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptETFTrackingError(eETE);
                         break;
                     // 4.26 - Top N Symbols with Trading Quantity
                     case ETopNSymbolsWithTradingQuantity.__MSG_TYPE:
                         ETopNSymbolsWithTradingQuantity ETNSWTQ = await this.Raw2Entity<ETopNSymbolsWithTradingQuantity>(rawData);
-                        sequence = ETNSWTQ.MsgSeqNum;
+                        //sequence = ETNSWTQ.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNSymbolswithTradingQuantity(ETNSWTQ);
                         break;
                     // 4.27 - Top N Symbols with  Current Price
                     case ETopNSymbolsWithCurrentPrice.__MSG_TYPE:
                         ETopNSymbolsWithCurrentPrice ETNSWCP = await this.Raw2Entity<ETopNSymbolsWithCurrentPrice>(rawData);
-                        sequence = ETNSWCP.MsgSeqNum;
+                        //sequence = ETNSWCP.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNSymbolswithCurrentPrice(ETNSWCP);
                         break;
                     // 4.28 - Top N Symbols with High Ratio of Price
                     case ETopNSymbolsWithHighRatioOfPrice.__MSG_TYPE:
                         ETopNSymbolsWithHighRatioOfPrice ETNSWHROP = await this.Raw2Entity<ETopNSymbolsWithHighRatioOfPrice>(rawData);
-                        sequence = ETNSWHROP.MsgSeqNum;
+                        //sequence = ETNSWHROP.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNSymbolswithHighRatioofPrice(ETNSWHROP);
                         break;
 
                     // 4.29 - Top N Symbols with Low Ratio of Price
                     case ETopNSymbolsWithLowRatioOfPrice.__MSG_TYPE:
                         ETopNSymbolsWithLowRatioOfPrice ETNSWLROP = await this.Raw2Entity<ETopNSymbolsWithLowRatioOfPrice>(rawData);
-                        sequence = ETNSWLROP.MsgSeqNum;
+                        //sequence = ETNSWLROP.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptTopNSymbolswithLowRatioofPrice(ETNSWLROP);
                         break;
                     // 4.30 - Trading Result of Foreign Investors
@@ -993,7 +999,7 @@ namespace BaseSaverLib.Implementations
                         if (ETRFI.TransactTime != null)
                         {
                             ETRFI.TransactTime = this._app.Common.FixToTimeString(ETRFI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime	
-                            sequence = ETRFI.MsgSeqNum;
+                            //sequence = ETRFI.MsgSeqNum;
                         }
                         
                         eBulkScript = await _repository.GetScriptTradingResultofForeignInvestors(ETRFI);
@@ -1003,7 +1009,7 @@ namespace BaseSaverLib.Implementations
                         EDisclosure eD = await this.Raw2Entity<EDisclosure>(rawData);
                         eD.PublicInformationDate = this._app.Common.FixToDateString(eD.PublicInformationDate.ToString());
                         eD.TransmissionDate = this._app.Common.FixToDateString(eD.TransmissionDate.ToString());// can phai chuyen SendingTime tu string sang DateTime		
-                        sequence = eD.MsgSeqNum;
+                        //sequence = eD.MsgSeqNum;
                         eBulkScript = await _repository.GetScriptDisclosure(eD);
                         break;
                     // 4.32 - TimeStampPolling
@@ -1024,7 +1030,7 @@ namespace BaseSaverLib.Implementations
                 result.Script = eBulkScript;
                 result.obj_X = ePrice;
                 result.obj_W = ePRecovery;
-                result.MsgSeqNum = sequence;
+                //result.MsgSeqNum = sequence;
                 return result;
             }
             catch (Exception ex)
@@ -1033,7 +1039,7 @@ namespace BaseSaverLib.Implementations
                 this._app.ErrorLogger.LogErrorContext(ex, ec);
                 return null;
             }
-        }      
+        }
         public DataTable ConvertEPriceListToDataTable(List<EPrice> lst_eP)
         {
             try
@@ -1047,6 +1053,7 @@ namespace BaseSaverLib.Implementations
                 dt.Columns.Add("aTargetCompID", typeof(string));
                 dt.Columns.Add("aMsgSeqNum", typeof(string));
                 dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
                 dt.Columns.Add("aMarketID", typeof(string));
                 dt.Columns.Add("aBoardID", typeof(string));
                 dt.Columns.Add("aTradingSessionID", typeof(string));
@@ -1194,6 +1201,7 @@ namespace BaseSaverLib.Implementations
                         // Nếu lỗi format, để NULL
                         row["aSendingTime"] = DBNull.Value;
                     }
+                    row["aCreateTime"] = DateTime.Now;
                     row["aMarketID"] = item.MarketID;
                     row["aBoardID"] = item.BoardID;
                     row["aTradingSessionID"] = item.TradingSessionID;
@@ -1202,12 +1210,12 @@ namespace BaseSaverLib.Implementations
                     row["aTransactTime"] = item.TransactTime;
 
                     row["aTotalVolumeTraded"] = item.TotalVolumeTraded != -9999999 ? (object)item.TotalVolumeTraded : DBNull.Value;
-                    row["aGrossTradeAmt"] = item.GrossTradeAmt != -9999999 ? (object)item.GrossTradeAmt : DBNull.Value; 
-                    row["aBuyTotOrderQty"] = item.BuyTotOrderQty != -9999999 ? (object)item.BuyTotOrderQty : DBNull.Value;  
-                    row["aBuyValidOrderCnt"] = item.BuyValidOrderCnt != -9999999 ? (object)item.BuyValidOrderCnt : DBNull.Value; 
-                    row["aSellTotOrderQty"] = item.SellTotOrderQty != -9999999 ? (object)item.SellTotOrderQty : DBNull.Value;   
-                    row["aSellValidOrderCnt"] = item.SellValidOrderCnt != -9999999 ? (object)item.SellValidOrderCnt : DBNull.Value;  
-                    row["aNoMDEntries"] = item.NoMDEntries != -9999999 ? (object)item.NoMDEntries : DBNull.Value;  
+                    row["aGrossTradeAmt"] = item.GrossTradeAmt != -9999999 ? (object)item.GrossTradeAmt : DBNull.Value;
+                    row["aBuyTotOrderQty"] = item.BuyTotOrderQty != -9999999 ? (object)item.BuyTotOrderQty : DBNull.Value;
+                    row["aBuyValidOrderCnt"] = item.BuyValidOrderCnt != -9999999 ? (object)item.BuyValidOrderCnt : DBNull.Value;
+                    row["aSellTotOrderQty"] = item.SellTotOrderQty != -9999999 ? (object)item.SellTotOrderQty : DBNull.Value;
+                    row["aSellValidOrderCnt"] = item.SellValidOrderCnt != -9999999 ? (object)item.SellValidOrderCnt : DBNull.Value;
+                    row["aNoMDEntries"] = item.NoMDEntries != -9999999 ? (object)item.NoMDEntries : DBNull.Value;
 
 
                     row["aBuyPrice1"] = item.BuyPrice1 != -9999999 ? (object)item.BuyPrice1 : DBNull.Value;
@@ -1327,7 +1335,7 @@ namespace BaseSaverLib.Implementations
                 }
                 return dt;
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 this._app.ErrorLogger.LogError(ex);
                 return null;
@@ -1346,6 +1354,7 @@ namespace BaseSaverLib.Implementations
                 dt.Columns.Add("aTargetCompID", typeof(string));
                 dt.Columns.Add("aMsgSeqNum", typeof(string));
                 dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
                 dt.Columns.Add("aMarketID", typeof(string));
                 dt.Columns.Add("aBoardID", typeof(string));
                 dt.Columns.Add("aTradingSessionID", typeof(string));
@@ -1500,6 +1509,7 @@ namespace BaseSaverLib.Implementations
                         // Nếu lỗi format, để NULL
                         row["aSendingTime"] = DBNull.Value;
                     }
+                    row["aCreateTime"] = DateTime.Now; //Gán tg hiện tại
                     row["aMarketID"] = item.MarketID;
                     row["aBoardID"] = item.BoardID;
                     row["aTradingSessionID"] = item.TradingSessionID;
@@ -1676,7 +1686,7 @@ namespace BaseSaverLib.Implementations
         public EBulkScript Script { get; set; }
         public EPrice obj_X { get; set; }
         public EPriceRecovery obj_W {  get; set; }  
-        public long MsgSeqNum { get; set; }
+        //public long MsgSeqNum { get; set; }
     }
     public class SequenceGapInfo
     {

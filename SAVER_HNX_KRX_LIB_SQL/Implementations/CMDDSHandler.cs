@@ -149,7 +149,6 @@ namespace BaseSaverLib.Implementations
                         {
                             marketDataTypes.Add("MX");
                         }
-
                         try
                         {
                             if (msgType != "M1")
@@ -189,7 +188,7 @@ namespace BaseSaverLib.Implementations
                                     }
                                     if(currentSeq < lastSeq)
                                     {
-                                        this._app.SqlLogger.LogSciptSQL($"Error_MissMsg", $"Seq_New: {currentSeq} ---- Seq_Old: {lastSeq}  ----- MsgType: {groupMsgType}");
+                                        this._app.SqlLogger.LogSciptSQL($"Error_MissMsg", $"Exchange: {strExchange} -----Seq_New: {currentSeq} ---- Seq_Old: {lastSeq}  ----- MsgType: {groupMsgType}");
                                     }
 
                                     dic_preSeq[strExchange][groupMsgType] = currentSeq;
@@ -263,14 +262,13 @@ namespace BaseSaverLib.Implementations
                 if (Scriptmssql.Any())
                 {
                     await this._repository.ExecBulkScript_SqlServer(Scriptmssql);
-                    this._monitor.SendStatusToMonitor(
+                }
+                this._monitor.SendStatusToMonitor(
                         this._app.Common.GetLocalDateTime(),
                         this._app.Common.GetLocalIp(),
                         CMonitor.MONITOR_APP.HNX_Saver5G_DB,
-                        totalcount,
+                        arrMsg.Length,
                         SW_RD.ElapsedMilliseconds);
-                }
-
                 return true;
             }
             catch (Exception ex)
@@ -1014,6 +1012,7 @@ namespace BaseSaverLib.Implementations
                 dt.Columns.Add("aTargetCompID", typeof(string));
                 dt.Columns.Add("aMsgSeqNum", typeof(string));
                 dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
                 dt.Columns.Add("aMarketID", typeof(string));
                 dt.Columns.Add("aBoardID", typeof(string));
                 dt.Columns.Add("aTradingSessionID", typeof(string));
@@ -1161,6 +1160,7 @@ namespace BaseSaverLib.Implementations
                         // Nếu lỗi format, để NULL
                         row["aSendingTime"] = DBNull.Value;
                     }
+                    row["aCreateTime"] = DateTime.Now; //Gán tg hiện tại
                     row["aMarketID"] = item.MarketID;
                     row["aBoardID"] = item.BoardID;
                     row["aTradingSessionID"] = item.TradingSessionID;
@@ -1314,6 +1314,7 @@ namespace BaseSaverLib.Implementations
                 dt.Columns.Add("aTargetCompID", typeof(string));
                 dt.Columns.Add("aMsgSeqNum", typeof(string));
                 dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
                 dt.Columns.Add("aMarketID", typeof(string));
                 dt.Columns.Add("aBoardID", typeof(string));
                 dt.Columns.Add("aTradingSessionID", typeof(string));
@@ -1468,6 +1469,7 @@ namespace BaseSaverLib.Implementations
                         // Nếu lỗi format, để NULL
                         row["aSendingTime"] = DBNull.Value;
                     }
+                    row["aCreateTime"] = DateTime.Now;
                     row["aMarketID"] = item.MarketID;
                     row["aBoardID"] = item.BoardID;
                     row["aTradingSessionID"] = item.TradingSessionID;

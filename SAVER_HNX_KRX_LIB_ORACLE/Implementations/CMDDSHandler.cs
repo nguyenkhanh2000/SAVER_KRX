@@ -101,6 +101,7 @@ namespace BaseSaverLib.Implementations
                 var oracleCommit = EGlobalConfig.__STRING_ORACLE_COMMIT;
                 var oracleEndBlock = EGlobalConfig.__STRING_ORACLE_BLOCK_END;
                 var oracleNewLineTab = $"{EGlobalConfig.__STRING_RETURN_NEW_LINE}{EGlobalConfig.__STRING_TAB}{EGlobalConfig.__STRING_SPACE}";
+                int count = 0;
                 var SW_RD = Stopwatch.StartNew();
 
                 foreach (string msg in arrMsg)
@@ -122,49 +123,53 @@ namespace BaseSaverLib.Implementations
                         continue;
                     }
 
-                    if (!string.IsNullOrEmpty(processMessageResult.Script.OracleScript))
+                    if (!oracleScriptsByType.TryGetValue(msgType, out var oracleList))
                     {
-                        if (!oracleScriptsByType.TryGetValue(msgType, out var oracleList))
-                        {
-                            oracleList = new List<string>();
-                            oracleScriptsByType[msgType] = oracleList;
-                        }
-                        oracleList.Add(processMessageResult.Script.OracleScript);
-                    }                                        
-                }
-
-                foreach (var (msgTypes, scripts) in oracleScriptsByType)
-                {
-                    var oracleBatchBuilder = new StringBuilder(oracleBeginBlock);
-                    foreach (var script in scripts)
-                    {
-                        oracleBatchBuilder.Append(oracleNewLineTab).Append(script);
+                        oracleList = new List<string>();
+                        oracleScriptsByType[msgType] = oracleList;
                     }
-                    oracleBatchBuilder.Append(oracleCommit).Append(oracleEndBlock);
-                    ScriptOracle.Add(oracleBatchBuilder.ToString());
+                    oracleList.Add(processMessageResult.Script.OracleScript);
+                    count++;
                 }
-
-                var parallelTasks = new List<Task>();
 
                 if (lst_eP.Count > 0)
                 {
-                    parallelTasks.Add(Oracle_BulkUpdate_msgX(lst_eP));
-                    parallelTasks.Add(Oracle_BulkIns_msgX(lst_eP));
-                }
+                    var updateTask = Oracle_BulkUpdate_msgX(lst_eP);
+                    var insertTask = Oracle_BulkIns_msgX(lst_eP);
 
+                    await Task.WhenAll(updateTask, insertTask);
+                }
                 if (lst_ePRecovery.Count > 0)
                 {
-                    parallelTasks.Add(Oracle_BulkUpdate_msgW(lst_ePRecovery));
-                    parallelTasks.Add(Oracle_BulkIns_msgW(lst_ePRecovery));
-                }
+                    var updateTask = Oracle_BulkUpdate_msgW(lst_ePRecovery);
+                    var insertTask = Oracle_BulkIns_msgW(lst_ePRecovery);
 
-                if (ScriptOracle.Any())
+                    await Task.WhenAll(updateTask, insertTask);
+                }
+                if (count > 0) 
                 {
-                    parallelTasks.Add(this._repository.ExecBulkScript(ScriptOracle));
+                    int batchSizePerTransaction = 200;
+                    foreach (var (msgTypes, scripts) in oracleScriptsByType)
+                    {
+                        for (int i = 0; i < scripts.Count; i += batchSizePerTransaction)
+                        {
+                            var scriptsBatch = scripts.Skip(i).Take(batchSizePerTransaction);
+                            var oracleBatchBuilder = new StringBuilder(oracleBeginBlock);
+
+                            foreach (var script in scriptsBatch)
+                            {
+                                oracleBatchBuilder.Append(oracleNewLineTab).Append(script);
+                            }
+
+                            oracleBatchBuilder.Append(oracleCommit).Append(oracleEndBlock);
+
+                            ScriptOracle.Add(oracleBatchBuilder.ToString());
+
+                            this._app.SqlLogger.LogSciptSQL($"Oracle_{msgTypes}", $"{oracleBatchBuilder.ToString().Length}");
+                        }
+                    }
+                    await this._repository.ExecBulkScript_Oracle(ScriptOracle);
                 }
-
-                await Task.WhenAll(parallelTasks);
-
                 this._monitor.SendStatusToMonitor(
                     this._app.Common.GetLocalDateTime(),
                     this._app.Common.GetLocalIp(),
@@ -583,12 +588,12 @@ namespace BaseSaverLib.Implementations
                             {
                                 Console.WriteLine("Bulk insert lỗi: " + ex.Message);
                             }
-                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X", conn))
-                            {
-                                checkCmd.Transaction = transaction;
-                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            }
+                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X", conn))
+                            //{
+                            //    checkCmd.Transaction = transaction;
+                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            //}
                             // Gọi stored procedure để insert/update dữ liệu vào bảng chính
                             using (OracleCommand cmdProc = new OracleCommand("PROC_MERGE_MSG_X", conn))
                             {
@@ -609,12 +614,12 @@ namespace BaseSaverLib.Implementations
                                 cmdTruncate.Transaction = transaction;
                                 cmdTruncate.ExecuteNonQuery();
                             }
-                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X", conn))
-                            {
-                                checkCmd.Transaction = transaction;
-                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            }
+                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X", conn))
+                            //{
+                            //    checkCmd.Transaction = transaction;
+                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            //}
                             // Commit transaction sau khi tất cả các thao tác thành công
                             transaction.Commit();
                         }
@@ -833,7 +838,7 @@ namespace BaseSaverLib.Implementations
                                 using (var bulkCopy = new OracleBulkCopy(conn))
                                 {
                                     bulkCopy.DestinationTableName = "table_temporary_W";
-                                    bulkCopy.BatchSize = 5000;
+                                    bulkCopy.BatchSize = 2000;
 
                                     foreach (DataColumn col in dt.Columns)
                                     {
@@ -1238,6 +1243,7 @@ namespace BaseSaverLib.Implementations
                 dt.Columns.Add("aTargetCompID", typeof(string));
                 dt.Columns.Add("aMsgSeqNum", typeof(string));
                 dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
                 dt.Columns.Add("aMarketID", typeof(string));
                 dt.Columns.Add("aBoardID", typeof(string));
                 dt.Columns.Add("aTradingSessionID", typeof(string));
@@ -1385,6 +1391,7 @@ namespace BaseSaverLib.Implementations
                         // Nếu lỗi format, để NULL
                         row["aSendingTime"] = DBNull.Value;
                     }
+                    row["aCreateTime"] = DateTime.Now; //Gán tg hiện tại
                     row["aMarketID"] = item.MarketID;
                     row["aBoardID"] = item.BoardID;
                     row["aTradingSessionID"] = item.TradingSessionID;
@@ -1537,6 +1544,7 @@ namespace BaseSaverLib.Implementations
                 dt.Columns.Add("aTargetCompID", typeof(string));
                 dt.Columns.Add("aMsgSeqNum", typeof(string));
                 dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
                 dt.Columns.Add("aMarketID", typeof(string));
                 dt.Columns.Add("aBoardID", typeof(string));
                 dt.Columns.Add("aTradingSessionID", typeof(string));
@@ -1691,6 +1699,7 @@ namespace BaseSaverLib.Implementations
                         // Nếu lỗi format, để NULL
                         row["aSendingTime"] = DBNull.Value;
                     }
+                    row["aCreateTime"] = DateTime.Now;
                     row["aMarketID"] = item.MarketID;
                     row["aBoardID"] = item.BoardID;
                     row["aTradingSessionID"] = item.TradingSessionID;

@@ -116,83 +116,83 @@ namespace BaseSqlServerLib.Implementations
         /// insert into tbl_TEST(name) values('aaaaa')
         /// </param>
         /// <returns>1</returns>
+		//public async Task<int> ExecuteAsync(string sql)
+  //      {
+  //          TExecutionContext ec = this._app.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} {sql}", true);
+
+  //          int affectedRows = 0;
+  //          try
+  //          {
+  //              using (SqlConnection connection = new SqlConnection(this._connectionString))
+  //              {
+  //                  await connection.OpenAsync();
+
+  //                  // log before
+  //                  //this._app.SqlLogger.LogSql(ec.Data);
+  //                  // exec async
+  //                  affectedRows = await connection.ExecuteAsync(sql);
+  //                  // log after: khong lay duoc data return, output sau khi exec; caller phai tu log neu can
+  //                  //this._app.SqlLogger.LogSql(this._app.Common.GetResultInfo(affectedRows));
+  //                  await connection.CloseAsync();
+  //              }
+  //          }
+  //          catch (Exception ex)
+  //          {
+  //              // log error + buffer data
+  //              this._app.ErrorLogger.LogErrorContext(ex, ec);
+  //          }
+  //          return affectedRows;
+  //      }
 		public async Task<int> ExecuteAsync(string sql)
-        {
-            TExecutionContext ec = this._app.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} {sql}", true);
+		{
+			TExecutionContext ec = this._app.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} {sql}", true);
 
-            int affectedRows = 0;
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(this._connectionString))
-                {
-                    await connection.OpenAsync();
+			int affectedRows = 0;
+			await using var connection = new SqlConnection(this._connectionString);
+			await using var command = new SqlCommand(sql, connection) { CommandType = CommandType.Text };
 
-                    // log before
-                    //this._app.SqlLogger.LogSql(ec.Data);
-                    // exec async
-                    affectedRows = await connection.ExecuteAsync(sql);
-                    // log after: khong lay duoc data return, output sau khi exec; caller phai tu log neu can
-                    //this._app.SqlLogger.LogSql(this._app.Common.GetResultInfo(affectedRows));
-                    await connection.CloseAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                // log error + buffer data
-                this._app.ErrorLogger.LogErrorContext(ex, ec);
-            }
-            return affectedRows;
-        }
-        //public async Task<int> ExecuteAsync(string sql)
-        //{
-        //    TExecutionContext ec = this._app.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} {sql}", true);
+			try
+			{
+				await connection.OpenAsync();
+				affectedRows = await command.ExecuteNonQueryAsync();
+			}
+			catch (Exception ex)
+			{
+				this._app.ErrorLogger.LogErrorContext(ex, ec);
+				//throw; // Nên throw để báo lỗi lên tầng trên thay vì chỉ ghi log
+			}
+			return affectedRows;
+		}
 
-        //    int affectedRows = 0;
-        //    await using var connection = new SqlConnection(this._connectionString);
-        //    await using var command = new SqlCommand(sql, connection) { CommandType = CommandType.Text };
+		//     public async Task<int> ExecuteAsync(string sql)
+		//     {
+		//         TExecutionContext ec = this._app.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} {sql}", true);
 
-        //    try
-        //    {
-        //        await connection.OpenAsync();
-        //        affectedRows = await command.ExecuteNonQueryAsync();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        this._app.ErrorLogger.LogErrorContext(ex, ec);
-        //        throw; // Nên throw để báo lỗi lên tầng trên thay vì chỉ ghi log
-        //    }
-        //    return affectedRows;
-        //}
+		//         int affectedRows = 0;
+		//         try
+		//         {
 
-        //     public async Task<int> ExecuteAsync(string sql)
-        //     {
-        //         TExecutionContext ec = this._app.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} {sql}", true);
+		//	await using var connection = new SqlConnection(this._connectionString);
+		//	await connection.OpenAsync();
 
-        //         int affectedRows = 0;
-        //         try
-        //         {
+		//	await using var command = new SqlCommand(sql, connection) { CommandType = CommandType.Text };
+		//	return await command.ExecuteNonQueryAsync();
+		//}
+		//         catch (Exception ex)
+		//         {
+		//             // log error + buffer data
+		//             this._app.ErrorLogger.LogErrorContext(ex, ec);
+		//         }
+		//         return affectedRows;
+		//     }
 
-        //	await using var connection = new SqlConnection(this._connectionString);
-        //	await connection.OpenAsync();
-
-        //	await using var command = new SqlCommand(sql, connection) { CommandType = CommandType.Text };
-        //	return await command.ExecuteNonQueryAsync();
-        //}
-        //         catch (Exception ex)
-        //         {
-        //             // log error + buffer data
-        //             this._app.ErrorLogger.LogErrorContext(ex, ec);
-        //         }
-        //         return affectedRows;
-        //     }
-
-        /// <summary>
-        /// 2019-11-19 14:24:52 ngocta2
-        /// su dung trong truong hop: select nhieu row => map luon vao T type
-        /// </summary>
-        /// <param name="sql"></param>
-        /// <returns></returns>
-        public async Task<IEnumerable<T>> QueryAsync(string sql)
+		/// <summary>
+		/// 2019-11-19 14:24:52 ngocta2
+		/// su dung trong truong hop: select nhieu row => map luon vao T type
+		/// </summary>
+		/// <param name="sql"></param>
+		/// <returns></returns>
+		public async Task<IEnumerable<T>> QueryAsync(string sql)
 		{
 			TExecutionContext ec = this._app.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} {sql}", true);
 			IEnumerable<T> list = new List<T>();

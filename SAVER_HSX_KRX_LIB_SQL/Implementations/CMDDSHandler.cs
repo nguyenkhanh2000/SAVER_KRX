@@ -130,6 +130,8 @@ namespace BaseSaverLib.Implementations
                     {
                         //var eBulkScript = await ProcessMessage(msgType, msg);
                         ProcessMessageResult processMessageResult = ProcessMessage(msgType, msg).GetAwaiter().GetResult();
+                        if (processMessageResult == null) continue;
+
                         currentSeq = processMessageResult.MsgSeqNum;
 
                         if (!string.IsNullOrEmpty(processMessageResult.Script.MssqlScript))
@@ -159,7 +161,7 @@ namespace BaseSaverLib.Implementations
                                     for (long missing = lastSeq + 1; missing < currentSeq; missing++)
                                     {
                                         gapInfo.MissingSequences.Add(missing);
-                                        this._app.SqlLogger.LogSciptSQL($"AAA_SQLSERVER_{groupMsgType}", $"Check_Sequence: OldSequence: {lastSeq} - MissingSequence: {missing}");
+                                        //this._app.SqlLogger.LogSciptSQL($"AAA_SQLSERVER_{groupMsgType}", $"Check_Sequence: OldSequence: {lastSeq} - MissingSequence: {missing}");
                                     }
                                     dic_missSeq[groupMsgType] = gapInfo;
                                 }
@@ -186,7 +188,7 @@ namespace BaseSaverLib.Implementations
                     //insert bang Intraday
                     await fnc_BulkInsert_tblPrice(lst_eP);
                     List<EPrice> lstSS_eP = await fnc_Update_tblPrice(lst_eP);
-                    Console.WriteLine("MsgX_SnapShot:" + lstSS_eP.Count.ToString());
+                    //Console.WriteLine("MsgX_SnapShot:" + lstSS_eP.Count.ToString());
 
                     foreach (var eP in lstSS_eP) 
                     {
@@ -205,7 +207,7 @@ namespace BaseSaverLib.Implementations
                     await fnc_BulkInsert_tblPriceRecovery(lst_ePR);
 
                     List<EPriceRecovery> lstSS_ePR = await fnc_Update_tblPriceRecovery(lst_ePR);
-                    Console.WriteLine("MsgW_SnapShot:" + lstSS_ePR.Count.ToString());
+                    //Console.WriteLine("MsgW_SnapShot:" + lstSS_ePR.Count.ToString());
                     foreach (var ePR in lstSS_ePR)
                     {
                         EBulkScript eBulkScript_W = await _repository.GetScriptPriceRecoveryAll(ePR);
@@ -229,30 +231,21 @@ namespace BaseSaverLib.Implementations
                     Scriptmssql.Add(mssqlBatchBuilder.ToString());
 
                     //Ghi log count 
-                    this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString()}");
+                    this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.Length.ToString()}");
                 }
-                Console.WriteLine("SQL_TIMER_BULK_INSERT______________________________:" + sW.ElapsedMilliseconds.ToString());
+                //Console.WriteLine("SQL_TIMER_BULK_INSERT______________________________:" + sW.ElapsedMilliseconds.ToString());
                 // Thực thi batch scripts
                 if (Scriptmssql.Any())
                 {
-                    await this._repository.ExecBulkScript_SqlServer(Scriptmssql);
-
-                    this._monitor.SendStatusToMonitor(
-                        this._app.Common.GetLocalDateTime(),
-                        this._app.Common.GetLocalIp(),
-                        CMonitor.MONITOR_APP.HNX_Saver5G,
-                        totalcount,
-                        SW_RD.ElapsedMilliseconds);
-
-                    //this._monitor.SendStatusToMonitor(
-                    //    this._app.Common.GetLocalDateTime(),
-                    //    this._app.Common.GetLocalIp(),
-                    //    CMonitor.MONITOR_APP.HNX_Saver5G_DB,
-                    //    totalcount,
-                    //    SW_RD.ElapsedMilliseconds);
+                    await this._repository.ExecBulkScript_SqlServer(Scriptmssql); 
                 }
-
-                return true;
+                this._monitor.SendStatusToMonitor(
+                    this._app.Common.GetLocalDateTime(),
+                    this._app.Common.GetLocalIp(),
+                    CMonitor.MONITOR_APP.HSX_Saver5G,
+                    totalcount,
+                    SW_RD.ElapsedMilliseconds);
+                    return true;
             }
             catch (Exception ex)
             {

@@ -65,55 +65,6 @@ namespace PriceLib.Implementations
 				return new EDalResult() { Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL, Message = ex.Message, Data = null };
 			}
 		}
-		public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
-		{
-			Stopwatch m_SW = Stopwatch.StartNew();
-			TExecutionContext ec = this._cS6GApp.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} script={scripts}", true);
-			ISqlServer<ESecurityDefinition> sqlServer = new CSqlServer<ESecurityDefinition>(this._cS6GApp, this._ePriceConfig.ConnectionMssql);
-
-			try
-			{
-				int successCount = 0;
-				foreach (var script in scripts)
-				{
-					try
-					{
-						int rowsAffected = await sqlServer.ExecuteAsync(script);
-						if (rowsAffected > 0) successCount++;
-					}
-					catch (Exception ex)
-					{
-						this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-						return new EDalResult()
-						{
-							Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
-							Message = ex.Message,
-							Data = null
-						};
-					}
-				}
-
-				var result = new EDalResult()
-				{
-					Code = EDalResult.__CODE_SUCCESS,
-					Message = $"{successCount}/{scripts.Count} scripts executed successfully.",
-					Data = successCount
-				};
-
-				Console.WriteLine("SQL_TIMER__________________________ :" + " - " + m_SW.ElapsedMilliseconds.ToString());
-				return result;
-			}
-			catch (Exception ex)
-			{
-				this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-				return new EDalResult()
-				{
-					Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
-					Message = ex.Message,
-					Data = null
-				};
-			}
-		}
 		//public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
 		//{
 		//	Stopwatch m_SW = Stopwatch.StartNew();
@@ -122,34 +73,82 @@ namespace PriceLib.Implementations
 
 		//	try
 		//	{
-
-		//		EDalResult result;
-
-		//		var tasks = scripts.Select(async script =>
+		//		int successCount = 0;
+		//		foreach (var script in scripts)
 		//		{
 		//			try
 		//			{
-		//				await sqlServer.ExecuteAsync(script);
+		//				int rowsAffected = await sqlServer.ExecuteAsync(script);
+		//				if (rowsAffected > 0) successCount++;
 		//			}
 		//			catch (Exception ex)
 		//			{
 		//				this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+		//				return new EDalResult()
+		//				{
+		//					Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
+		//					Message = ex.Message,
+		//					Data = null
+		//				};
 		//			}
-		//		});
-		//		await Task.WhenAll(tasks);
+		//		}
 
-		//		result = new EDalResult() { Code = EDalResult.__CODE_SUCCESS, Message = EDalResult.__STRING_SUCCESS, Data = 0 };
-  //              //Console.WriteLine("SQL_TIMER_____:" + " - " + m_SW.ElapsedMilliseconds.ToString());
-  //              return result;
+		//		var result = new EDalResult()
+		//		{
+		//			Code = EDalResult.__CODE_SUCCESS,
+		//			Message = $"{successCount}/{scripts.Count} scripts executed successfully.",
+		//			Data = successCount
+		//		};
+
+		//		Console.WriteLine("SQL_TIMER__________________________ :" + " - " + m_SW.ElapsedMilliseconds.ToString());
+		//		return result;
 		//	}
 		//	catch (Exception ex)
 		//	{
-		//		// log error + buffer data
 		//		this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-		//		// error => return null
-		//		return new EDalResult() { Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL, Message = ex.Message, Data = null };
+		//		return new EDalResult()
+		//		{
+		//			Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
+		//			Message = ex.Message,
+		//			Data = null
+		//		};
 		//	}
 		//}
+		public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
+		{
+			Stopwatch m_SW = Stopwatch.StartNew();
+			TExecutionContext ec = this._cS6GApp.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} script={scripts}", true);
+			ISqlServer<ESecurityDefinition> sqlServer = new CSqlServer<ESecurityDefinition>(this._cS6GApp, this._ePriceConfig.ConnectionMssql);
+
+			try
+			{
+				EDalResult result;
+
+				var tasks = scripts.Select(async script =>
+				{
+					try
+					{
+						await sqlServer.ExecuteAsync(script);
+					}
+					catch (Exception ex)
+					{
+						this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+					}
+				});
+				await Task.WhenAll(tasks);
+
+				result = new EDalResult() { Code = EDalResult.__CODE_SUCCESS, Message = EDalResult.__STRING_SUCCESS, Data = 0 };
+				Console.WriteLine("SQL_TIMER___________________________:" + " - " + m_SW.ElapsedMilliseconds.ToString());
+				return result;
+			}
+			catch (Exception ex)
+			{
+				// log error + buffer data
+				this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+				// error => return null
+				return new EDalResult() { Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL, Message = ex.Message, Data = null };
+			}
+		}
 		/// <summary>
 		/// 2020-07-24 10:55:58 ngocta2
 		/// 4.1 Security Definition
@@ -2255,10 +2254,12 @@ namespace PriceLib.Implementations
 				if (ePR.TotalVolumeTraded != -9999999)
 				{
                     dynamicParameters.Add($"@{__ATOTALVOLUMETRADED}", ePR.TotalVolumeTraded, DbType.Int64, ParameterDirection.Input);
-
                 }
-                dynamicParameters.Add($"@{__AGROSSTRADEAMT}",      ePR.GrossTradeAmt,      DbType.Decimal,    ParameterDirection.Input);
-				if (ePR.SellTotOrderQty != -9999999)
+                if (ePR.GrossTradeAmt != 0)
+                {
+                    dynamicParameters.Add($"@{__AGROSSTRADEAMT}", ePR.GrossTradeAmt, DbType.Decimal, ParameterDirection.Input);
+                }
+                if (ePR.SellTotOrderQty != -9999999)
 				{
 					dynamicParameters.Add($"@{__ASELLTOTORDERQTY}", ePR.SellTotOrderQty, DbType.Int64, ParameterDirection.Input);
 					dynamicParameters.Add($"@{__ASELLVALIDORDERCNT}", ePR.SellValidOrderCnt, DbType.Int64, ParameterDirection.Input);
@@ -2269,8 +2270,10 @@ namespace PriceLib.Implementations
 					dynamicParameters.Add($"@{__ABUYVALIDORDERCNT}", ePR.BuyValidOrderCnt, DbType.Int64, ParameterDirection.Input);
 				}
 				dynamicParameters.Add($"@{__ANOMDENTRIES}",        ePR.NoMDEntries,        DbType.Int64,      ParameterDirection.Input);
-				if (ePR.BuyPrice1 != -9999999 || ePR.BuyPrice2 != -9999999 || ePR.BuyPrice10 != -9999999 || ePR.BuyPrice3 != -9999999 || ePR.BuyPrice4 != -9999999 || ePR.BuyPrice5 != -9999999 || ePR.BuyPrice6 != -9999999 || ePR.BuyPrice7 != -9999999 || ePR.BuyPrice8 != -9999999 || ePR.BuyPrice9 != -9999999 )
-				{
+
+                // Mua
+                if (ePR.BuyPrice1 != -9999999 || ePR.BuyPrice2 != -9999999 || ePR.BuyPrice3 != -9999999)
+                {
                     dynamicParameters.Add($"@{__ABUYPRICE1}", ePR.BuyPrice1, DbType.Decimal, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ABUYQUANTITY1}", ePR.BuyQuantity1, DbType.Int64, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ABUYPRICE1_NOO}", ePR.BuyPrice1_NOO, DbType.Int64, ParameterDirection.Input);
@@ -2286,6 +2289,9 @@ namespace PriceLib.Implementations
                     dynamicParameters.Add($"@{__ABUYPRICE3_NOO}", ePR.BuyPrice3_NOO, DbType.Int64, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ABUYPRICE3_MDEY}", ePR.BuyPrice3_MDEY, DbType.Decimal, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ABUYPRICE3_MDEMMS}", ePR.BuyPrice3_MDEMMS, DbType.Int64, ParameterDirection.Input);
+                }
+                if (ePR.BuyPrice4 != -9999999 || ePR.BuyPrice5 != -9999999 || ePR.BuyPrice6 != -9999999 || ePR.BuyPrice7 != -9999999 || ePR.BuyPrice8 != -9999999 || ePR.BuyPrice9 != -9999999 || ePR.BuyPrice10 != -9999999)
+                {
                     dynamicParameters.Add($"@{__ABUYPRICE4}", ePR.BuyPrice4, DbType.Decimal, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ABUYQUANTITY4}", ePR.BuyQuantity4, DbType.Int64, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ABUYPRICE4_NOO}", ePR.BuyPrice4_NOO, DbType.Int64, ParameterDirection.Input);
@@ -2321,11 +2327,12 @@ namespace PriceLib.Implementations
                     dynamicParameters.Add($"@{__ABUYPRICE10_NOO}", ePR.BuyPrice10_NOO, DbType.Int64, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ABUYPRICE10_MDEY}", ePR.BuyPrice10_MDEY, DbType.Decimal, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ABUYPRICE10_MDEMMS}", ePR.BuyPrice10_MDEMMS, DbType.Int64, ParameterDirection.Input);
-
                 }
 
-				if (ePR.SellPrice1 != -9999999 || ePR.SellPrice2 != -9999999 || ePR.SellPrice3 != -9999999 || ePR.SellPrice4 != -9999999 || ePR.SellPrice5 != -9999999 || ePR.SellPrice6 != -9999999 || ePR.SellPrice7 != -9999999 || ePR.SellPrice8 != -9999999 || ePR.SellPrice9 != -9999999 || ePR.SellPrice10 != -9999999)
-				{
+
+                //Bán
+                if (ePR.SellPrice1 != -9999999 || ePR.SellPrice2 != -9999999 || ePR.SellPrice3 != -9999999)
+                {
                     dynamicParameters.Add($"@{__ASELLPRICE1}", ePR.SellPrice1, DbType.Decimal, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ASELLQUANTITY1}", ePR.SellQuantity1, DbType.Int64, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ASELLPRICE1_NOO}", ePR.SellPrice1_NOO, DbType.Int64, ParameterDirection.Input);
@@ -2341,6 +2348,10 @@ namespace PriceLib.Implementations
                     dynamicParameters.Add($"@{__ASELLPRICE3_NOO}", ePR.SellPrice3_NOO, DbType.Int64, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ASELLPRICE3_MDEY}", ePR.SellPrice3_MDEY, DbType.Decimal, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ASELLPRICE3_MDEMMS}", ePR.SellPrice3_MDEMMS, DbType.Int64, ParameterDirection.Input);
+
+                }
+                if (ePR.SellPrice4 != -9999999 || ePR.SellPrice5 != -9999999 || ePR.SellPrice6 != -9999999 || ePR.SellPrice7 != -9999999 || ePR.SellPrice8 != -9999999 || ePR.SellPrice9 != -9999999 || ePR.SellPrice10 != -9999999)
+                {
                     dynamicParameters.Add($"@{__ASELLPRICE4}", ePR.SellPrice4, DbType.Decimal, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ASELLQUANTITY4}", ePR.SellQuantity4, DbType.Int64, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ASELLPRICE4_NOO}", ePR.SellPrice4_NOO, DbType.Int64, ParameterDirection.Input);
@@ -2378,11 +2389,10 @@ namespace PriceLib.Implementations
                     dynamicParameters.Add($"@{__ASELLPRICE10_MDEMMS}", ePR.SellPrice10_MDEMMS, DbType.Int64, ParameterDirection.Input);
 
                 }
-				if (ePR.MatchPrice != -9999999)
+                if (ePR.MatchPrice != -9999999)
 				{
                     dynamicParameters.Add($"@{__AMATCHPRICE}", ePR.MatchPrice, DbType.Decimal, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__AMATCHQUANTITY}", ePR.MatchQuantity, DbType.Int64, ParameterDirection.Input);
-
 
                 }
 				if (ePR.OpenPrice != -9999999)

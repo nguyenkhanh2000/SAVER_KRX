@@ -219,20 +219,29 @@ namespace BaseSaverLib.Implementations
                         mssqlList.Add(eBulkScript_W.MssqlScript);
                     }
                 }
-                // Tạo batch script cho SQL Server
-                foreach(var (msgType, scripts) in mssqlScriptsByType)
+                if(totalcount > 0)
                 {
-                    var mssqlBatchBuilder = new StringBuilder(sqlBeginTransaction);
-                    foreach (var script in scripts)
+                    int batchSizePerTransaction = 200;
+                    // Tạo batch script cho SQL Server
+                    foreach (var (msgType, scripts) in mssqlScriptsByType)
                     {
-                        mssqlBatchBuilder.Append(sqlExec).Append(script);
-                    }
-                    mssqlBatchBuilder.Append(EGlobalConfig.__STRING_RETURN_NEW_LINE).Append(sqlCommitTransaction);
-                    Scriptmssql.Add(mssqlBatchBuilder.ToString());
+                        for (int i = 0; i < scripts.Count; i += batchSizePerTransaction)
+                        {
+                            var scriptsBatch = scripts.Skip(i).Take(batchSizePerTransaction);
+                            var mssqlBatchBuilder = new StringBuilder(sqlBeginTransaction);
+                            foreach (var script in scriptsBatch)
+                            {
+                                mssqlBatchBuilder.Append(sqlExec).Append(script);
+                            }
+                            mssqlBatchBuilder.Append(EGlobalConfig.__STRING_RETURN_NEW_LINE).Append(sqlCommitTransaction);
+                            Scriptmssql.Add(mssqlBatchBuilder.ToString());
 
-                    //Ghi log count 
-                    this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.Length.ToString()}");
+                            //Ghi log count 
+                            this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString()}");
+                        }
+                    }
                 }
+                
                 //Console.WriteLine("SQL_TIMER_BULK_INSERT______________________________:" + sW.ElapsedMilliseconds.ToString());
                 // Thực thi batch scripts
                 if (Scriptmssql.Any())

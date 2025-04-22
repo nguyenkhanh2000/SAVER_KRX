@@ -41,9 +41,9 @@ namespace BaseSaverLib.Implementations
         private readonly SemaphoreSlim semaphoreREDIS = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim semaphoreSQL = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim semaphoreORACLE = new SemaphoreSlim(1, 1);
-        private ConcurrentQueue<EPrice> m_queueRedis = new ConcurrentQueue<EPrice>();
-        private ConcurrentQueue<SqlMessage> m_queueSQL = new ConcurrentQueue<SqlMessage>();
-        private ConcurrentQueue<SqlMessageWithObj> m_queueOracle = new ConcurrentQueue<SqlMessageWithObj>();
+        //private ConcurrentQueue<EPrice> m_queueRedis = new ConcurrentQueue<EPrice>();
+        //private ConcurrentQueue<SqlMessage> m_queueSQL = new ConcurrentQueue<SqlMessage>();
+        //private ConcurrentQueue<SqlMessageWithObj> m_queueOracle = new ConcurrentQueue<SqlMessageWithObj>();
         //public HashSet<string> marketDataTypes = new HashSet<string> { "X", "MF", "M8", "ME", "M7", "f" };
 
         // Dic lưu sequence trước theo msgType
@@ -170,13 +170,19 @@ namespace BaseSaverLib.Implementations
                     }
                     await this._repository.ExecBulkScript_Oracle(ScriptOracle);
                 }
-
                 this._monitor.SendStatusToMonitor(
                 this._app.Common.GetLocalDateTime(),
                 this._app.Common.GetLocalIp(),
-                CMonitor.MONITOR_APP.HSX_Saver5G,
+                CMonitor.MONITOR_APP.HSX_Feeder5G_PT,
                 arrMsg.Length,
                 SW_RD.ElapsedMilliseconds);
+
+                //this._monitor.SendStatusToMonitor(
+                //this._app.Common.GetLocalDateTime(),
+                //this._app.Common.GetLocalIp(),
+                //CMonitor.MONITOR_APP.HSX_Saver5G,
+                //arrMsg.Length,
+                //SW_RD.ElapsedMilliseconds);
 
                 return true;
             }
@@ -204,7 +210,7 @@ namespace BaseSaverLib.Implementations
                     {
                         missingLogList.Add(new CMsgSeq
                         {
-                            Exchange = "HSX",
+                            Exchange = "STX",
                             MsgType = msgType,
                             SeqMiss = msg,
                             SeqOld = info.OldSequence,
@@ -719,12 +725,12 @@ namespace BaseSaverLib.Implementations
                                 cmdTruncate.Transaction = transaction;
                                 cmdTruncate.ExecuteNonQuery();
                             }
-                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
-                            {
-                                checkCmd.Transaction = transaction;
-                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            }
+                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
+                            //{
+                            //    checkCmd.Transaction = transaction;
+                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            //}
                             // Commit transaction sau khi tất cả các thao tác thành công
                             transaction.Commit();
                         }

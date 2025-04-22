@@ -1287,7 +1287,7 @@ namespace PriceLib.Implementations
                     eP.SellPrice10 != -9999999 ? new OracleParameter($"p{__ASELLPRICE10_MDEMMS}", OracleDbType.Int64, eP.SellPrice10_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE10_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
 
                     eP.MatchPrice != -9999999 ? new OracleParameter($"p{__AMATCHPRICE}", OracleDbType.Decimal, eP.MatchPrice, ParameterDirection.Input) : new OracleParameter($"p{__AMATCHPRICE}", OracleDbType.Decimal, null, ParameterDirection.Input),
-                    eP.MatchPrice != -9999999 ? new OracleParameter($"p{__AMATCHQUANTITY}", OracleDbType.Int64, eP.MatchQuantity, ParameterDirection.Input): new OracleParameter($"p{__AMATCHQUANTITY}", OracleDbType.Int64, null, ParameterDirection.Input),
+                    eP.MatchQuantity != -9999999 ? new OracleParameter($"p{__AMATCHQUANTITY}", OracleDbType.Int64, eP.MatchQuantity, ParameterDirection.Input): new OracleParameter($"p{__AMATCHQUANTITY}", OracleDbType.Int64, null, ParameterDirection.Input),
 
                     eP.OpenPrice != -9999999 ? new OracleParameter($"p{__AOPENPRICE}", OracleDbType.Decimal, eP.OpenPrice, ParameterDirection.Input) : new OracleParameter($"p{__AOPENPRICE}", OracleDbType.Decimal, null, ParameterDirection.Input),
                     eP.ClosePrice != -9999999 ? new OracleParameter($"p{__ACLOSEPRICE}", OracleDbType.Decimal, eP.ClosePrice, ParameterDirection.Input) : new OracleParameter($"p{__ACLOSEPRICE}", OracleDbType.Decimal, null, ParameterDirection.Input),
@@ -2630,127 +2630,160 @@ namespace PriceLib.Implementations
 					,new OracleParameter($"p{__AOPNPX}",              OracleDbType.Decimal,     ePR.OpnPx,              ParameterDirection.Input)
 					,new OracleParameter($"p{__ATRDSESSNHIGHPX}",     OracleDbType.Decimal,     ePR.TrdSessnHighPx,     ParameterDirection.Input)
 					,new OracleParameter($"p{__ATRDSESSNLOWPX}",      OracleDbType.Decimal,     ePR.TrdSessnLowPx,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASYMBOLCLOSEINFOPX}",  OracleDbType.Decimal,     ePR.SymbolCloseInfoPx,  ParameterDirection.Input)
+					,new OracleParameter($"p{__ASYMBOLCLOSEINFOPX}",  OracleDbType.Decimal,     ePR.SymbolCloseInfoPx,  ParameterDirection.Input),
 					//,new OracleParameter($"p{__AOPNPXYLD}",           OracleDbType.Decimal,     ePR.OpnPxYld,           ParameterDirection.Input)
 					//,new OracleParameter($"p{__ATRDSESSNHIGHPXYLD}",  OracleDbType.Decimal,     ePR.TrdSessnHighPxYld,  ParameterDirection.Input)
 					//,new OracleParameter($"p{__ATRDSESSNLOWPXYLD}",   OracleDbType.Decimal,     ePR.TrdSessnLowPxYld,   ParameterDirection.Input)
 					//,new OracleParameter($"p{__ACLSPXYLD}",           OracleDbType.Decimal,     ePR.ClsPxYld,           ParameterDirection.Input)
-					,new OracleParameter($"p{__ATOTALVOLUMETRADED}",  OracleDbType.Int64,       ePR.TotalVolumeTraded,  ParameterDirection.Input)
-					,new OracleParameter($"p{__AGROSSTRADEAMT}",      OracleDbType.Decimal,     ePR.GrossTradeAmt,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLTOTORDERQTY}",    OracleDbType.Int64,       ePR.SellTotOrderQty,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYTOTORDERQTY}",     OracleDbType.Int64,       ePR.BuyTotOrderQty,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLVALIDORDERCNT}",  OracleDbType.Int64,       ePR.SellValidOrderCnt,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYVALIDORDERCNT}",   OracleDbType.Int64,       ePR.BuyValidOrderCnt,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ANOMDENTRIES}",        OracleDbType.Int64,       ePR.NoMDEntries,        ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE1}",          OracleDbType.Decimal,     ePR.BuyPrice1,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY1}",       OracleDbType.Int64,       ePR.BuyQuantity1,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE1_NOO}",      OracleDbType.Int64,       ePR.BuyPrice1_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE1_MDEY}",     OracleDbType.Decimal,     ePR.BuyPrice10_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE1_MDEMMS}",   OracleDbType.Int64,       ePR.BuyPrice1_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE1}",         OracleDbType.Decimal,     ePR.SellPrice1,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY1}",      OracleDbType.Int64,       ePR.SellQuantity1,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE1_NOO}",     OracleDbType.Int64,       ePR.SellPrice1_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE1_MDEY}",    OracleDbType.Decimal,     ePR.SellPrice1_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE1_MDEMMS}",  OracleDbType.Int64,       ePR.SellPrice1_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE2}",          OracleDbType.Decimal,     ePR.BuyPrice2,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY2}",       OracleDbType.Int64,       ePR.BuyQuantity2,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE2_NOO}",      OracleDbType.Int64,       ePR.BuyPrice2_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE2_MDEY}",     OracleDbType.Decimal,     ePR.BuyPrice2_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE2_MDEMMS}",   OracleDbType.Int64,       ePR.BuyPrice2_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE2}",         OracleDbType.Decimal,     ePR.SellPrice2,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY2}",      OracleDbType.Int64,       ePR.SellQuantity2,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE2_NOO}",     OracleDbType.Int64,       ePR.SellPrice2_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE2_MDEY}",    OracleDbType.Decimal,     ePR.SellPrice2_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE2_MDEMMS}",  OracleDbType.Int64,       ePR.SellPrice2_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE3}",          OracleDbType.Decimal,     ePR.BuyPrice3,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY3}",       OracleDbType.Int64,       ePR.BuyQuantity3,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE3_NOO}",      OracleDbType.Int64,       ePR.BuyPrice3_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE3_MDEY}",     OracleDbType.Decimal,     ePR.BuyPrice3_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE3_MDEMMS}",   OracleDbType.Int64,       ePR.BuyPrice3_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE3}",         OracleDbType.Decimal,     ePR.SellPrice3,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY3}",      OracleDbType.Int64,       ePR.SellQuantity3,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE3_NOO}",     OracleDbType.Int64,       ePR.SellPrice3_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE3_MDEY}",    OracleDbType.Decimal,     ePR.SellPrice3_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE3_MDEMMS}",  OracleDbType.Int64,       ePR.SellPrice3_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE4}",          OracleDbType.Decimal,     ePR.BuyPrice4,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY4}",       OracleDbType.Int64,       ePR.BuyQuantity4,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE4_NOO}",      OracleDbType.Int64,       ePR.BuyPrice4_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE4_MDEY}",     OracleDbType.Decimal,     ePR.BuyPrice4_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE4_MDEMMS}",   OracleDbType.Int64,       ePR.BuyPrice4_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE4}",         OracleDbType.Decimal,     ePR.SellPrice4,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY4}",      OracleDbType.Int64,       ePR.SellQuantity4,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE4_NOO}",     OracleDbType.Int64,       ePR.SellPrice4_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE4_MDEY}",    OracleDbType.Decimal,     ePR.SellPrice4_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE4_MDEMMS}",  OracleDbType.Int64,       ePR.SellPrice4_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE5}",          OracleDbType.Decimal,     ePR.BuyPrice5,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY5}",       OracleDbType.Int64,       ePR.BuyQuantity5,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE5_NOO}",      OracleDbType.Int64,       ePR.BuyPrice5_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE5_MDEY}",     OracleDbType.Decimal,     ePR.BuyPrice5_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE5_MDEMMS}",   OracleDbType.Int64,       ePR.BuyPrice5_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE5}",         OracleDbType.Decimal,     ePR.SellPrice5,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY5}",      OracleDbType.Int64,       ePR.SellQuantity5,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE5_NOO}",     OracleDbType.Int64,       ePR.SellPrice5_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE5_MDEY}",    OracleDbType.Decimal,     ePR.SellPrice5_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE5_MDEMMS}",  OracleDbType.Int64,       ePR.SellPrice5_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE6}",          OracleDbType.Decimal,     ePR.BuyPrice6,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY6}",       OracleDbType.Int64,       ePR.BuyQuantity6,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE6_NOO}",      OracleDbType.Int64,       ePR.BuyPrice6_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE6_MDEY}",     OracleDbType.Decimal,     ePR.BuyPrice6_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE6_MDEMMS}",   OracleDbType.Int64,       ePR.BuyPrice6_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE6}",         OracleDbType.Decimal,     ePR.SellPrice6,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY6}",      OracleDbType.Int64,       ePR.SellQuantity6,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE6_NOO}",     OracleDbType.Int64,       ePR.SellPrice6_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE6_MDEY}",    OracleDbType.Decimal,     ePR.SellPrice6_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE6_MDEMMS}",  OracleDbType.Int64,       ePR.SellPrice6_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE7}",          OracleDbType.Decimal,     ePR.BuyPrice7,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY7}",       OracleDbType.Int64,       ePR.BuyQuantity7,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE7_NOO}",      OracleDbType.Int64,       ePR.BuyPrice7_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE7_MDEY}",     OracleDbType.Decimal,     ePR.BuyPrice7_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE7_MDEMMS}",   OracleDbType.Int64,       ePR.BuyPrice7_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE7}",         OracleDbType.Decimal,     ePR.SellPrice7,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY7}",      OracleDbType.Int64,       ePR.SellQuantity7,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE7_NOO}",     OracleDbType.Int64,       ePR.SellPrice7_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE7_MDEY}",    OracleDbType.Decimal,     ePR.SellPrice7_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE7_MDEMMS}",  OracleDbType.Int64,       ePR.SellPrice7_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE8}",          OracleDbType.Decimal,     ePR.BuyPrice8,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY8}",       OracleDbType.Int64,       ePR.BuyQuantity8,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE8_NOO}",      OracleDbType.Int64,       ePR.BuyPrice8_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE8_MDEY}",     OracleDbType.Decimal,     ePR.BuyPrice8_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE8_MDEMMS}",   OracleDbType.Int64,       ePR.BuyPrice8_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE8}",         OracleDbType.Decimal,     ePR.SellPrice8,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY8}",      OracleDbType.Int64,       ePR.SellQuantity8,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE8_NOO}",     OracleDbType.Int64,       ePR.SellPrice8_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE8_MDEY}",    OracleDbType.Decimal,     ePR.SellPrice8_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE8_MDEMMS}",  OracleDbType.Int64,       ePR.SellPrice8_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE9}",          OracleDbType.Decimal,     ePR.BuyPrice9,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY9}",       OracleDbType.Int64,       ePR.BuyQuantity9,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE9_NOO}",      OracleDbType.Int64,       ePR.BuyPrice9_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE9_MDEY}",     OracleDbType.Decimal,     ePR.BuyPrice9_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE9_MDEMMS}",   OracleDbType.Int64,       ePR.BuyPrice9_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE9}",         OracleDbType.Decimal,     ePR.SellPrice9,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY9}",      OracleDbType.Int64,       ePR.SellQuantity9,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE9_NOO}",     OracleDbType.Int64,       ePR.SellPrice9_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE9_MDEY}",    OracleDbType.Decimal,     ePR.SellPrice9_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE9_MDEMMS}",  OracleDbType.Int64,       ePR.SellPrice9_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE10}",          OracleDbType.Decimal,    ePR.BuyPrice10,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYQUANTITY10}",       OracleDbType.Int64,      ePR.BuyQuantity10,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE10_NOO}",      OracleDbType.Int64,      ePR.BuyPrice10_NOO,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE10_MDEY}",     OracleDbType.Decimal,    ePR.BuyPrice10_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ABUYPRICE10_MDEMMS}",   OracleDbType.Int64,      ePR.BuyPrice10_MDEMMS,   ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE10}",         OracleDbType.Decimal,    ePR.SellPrice10,         ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLQUANTITY10}",      OracleDbType.Int64,      ePR.SellQuantity10,      ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE10_NOO}",     OracleDbType.Int64,      ePR.SellPrice10_NOO,     ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE10_MDEY}",    OracleDbType.Decimal,    ePR.SellPrice10_MDEY,    ParameterDirection.Input)
-					,new OracleParameter($"p{__ASELLPRICE10_MDEMMS}",  OracleDbType.Int64,      ePR.SellPrice10_MDEMMS,  ParameterDirection.Input)
-					,new OracleParameter($"p{__AMATCHPRICE}",          OracleDbType.Decimal,    ePR.MatchPrice,          ParameterDirection.Input)
-					,new OracleParameter($"p{__AMATCHQUANTITY}",       OracleDbType.Int64,      ePR.MatchQuantity,       ParameterDirection.Input)
-					,new OracleParameter($"p{__AOPENPRICE}",          OracleDbType.Decimal,     ePR.OpenPrice,          ParameterDirection.Input)
-					,new OracleParameter($"p{__ACLOSEPRICE}",        OracleDbType.Decimal,      ePR.ClosePrice,         ParameterDirection.Input)
-					,new OracleParameter($"p{__AHIGHESTPRICE}",      OracleDbType.Decimal,      ePR.HighestPrice,       ParameterDirection.Input)
-					,new OracleParameter($"p{__ALOWESTPRICE}",       OracleDbType.Decimal,      ePR.LowestPrice,        ParameterDirection.Input)
+					ePR.TotalVolumeTraded != -9999999 ? new OracleParameter($"p{__ATOTALVOLUMETRADED}", OracleDbType.Int64, ePR.TotalVolumeTraded, ParameterDirection.Input) : new OracleParameter($"p{__ATOTALVOLUMETRADED}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.GrossTradeAmt != 0 ? new OracleParameter($"p{__AGROSSTRADEAMT}", OracleDbType.Decimal, ePR.GrossTradeAmt, ParameterDirection.Input) : new OracleParameter($"p{__AGROSSTRADEAMT}", OracleDbType.Decimal, null, ParameterDirection.Input),
+                    ePR.SellTotOrderQty != -9999999 ? new OracleParameter($"p{__ASELLTOTORDERQTY}", OracleDbType.Int64, ePR.SellTotOrderQty, ParameterDirection.Input) : new OracleParameter($"p{__ASELLTOTORDERQTY}", OracleDbType.Int64, null, ParameterDirection.Input),
+                    ePR.BuyTotOrderQty != -9999999 ? new OracleParameter($"p{__ABUYTOTORDERQTY}", OracleDbType.Int64, ePR.BuyTotOrderQty, ParameterDirection.Input) : new OracleParameter($"p{__ABUYTOTORDERQTY}", OracleDbType.Int64, null, ParameterDirection.Input),
+                    ePR.SellValidOrderCnt != -9999999 ? new OracleParameter($"p{__ASELLVALIDORDERCNT}", OracleDbType.Int64, ePR.SellValidOrderCnt, ParameterDirection.Input) : new OracleParameter($"p{__ASELLVALIDORDERCNT}", OracleDbType.Int64, null, ParameterDirection.Input),
+                    ePR.BuyTotOrderQty != -9999999 ? new OracleParameter($"p{__ABUYVALIDORDERCNT}", OracleDbType.Int64, ePR.BuyValidOrderCnt, ParameterDirection.Input) : new OracleParameter($"p{__ABUYVALIDORDERCNT}", OracleDbType.Int64, null, ParameterDirection.Input),
+                    new OracleParameter($"p{__ANOMDENTRIES}",        OracleDbType.Int64,       ePR.NoMDEntries,        ParameterDirection.Input),
+
+					//TOP 1
+					ePR.BuyPrice1 != -9999999 ? new OracleParameter($"p{__ABUYPRICE1}", OracleDbType.Decimal, ePR.BuyPrice1, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE1}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice1 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY1}", OracleDbType.Int64, ePR.BuyQuantity1, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY1}", OracleDbType.Int64, null, ParameterDirection.Input) ,
+					ePR.BuyPrice1 != -9999999 ? new OracleParameter($"p{__ABUYPRICE1_NOO}", OracleDbType.Int64, ePR.BuyPrice1_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE1_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice1 != -9999999 ? new OracleParameter($"p{__ABUYPRICE1_MDEY}", OracleDbType.Decimal, ePR.BuyPrice1_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE1_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice1 != -9999999 ? new OracleParameter($"p{__ABUYPRICE1_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice1_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE1_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice1 != -9999999 ? new OracleParameter($"p{__ASELLPRICE1}", OracleDbType.Decimal, ePR.SellPrice1, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE1}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice1 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY1}", OracleDbType.Int64, ePR.SellQuantity1, ParameterDirection.Input): new OracleParameter($"p{__ASELLQUANTITY1}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice1 != -9999999 ? new OracleParameter($"p{__ASELLPRICE1_NOO}", OracleDbType.Int64, ePR.SellPrice1_NOO, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE1_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice1 != -9999999 ? new OracleParameter($"p{__ASELLPRICE1_MDEY}", OracleDbType.Decimal, ePR.SellPrice1_MDEY, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE1_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice1 != -9999999 ? new OracleParameter($"p{__ASELLPRICE1_MDEMMS}", OracleDbType.Int64, ePR.SellPrice1_MDEMMS, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE1_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					//TOP 2
+					ePR.BuyPrice2 != -9999999 ? new OracleParameter($"p{__ABUYPRICE2}", OracleDbType.Decimal, ePR.BuyPrice2, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE2}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice2 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY2}", OracleDbType.Int64, ePR.BuyQuantity2, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY2}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice2 != -9999999 ? new OracleParameter($"p{__ABUYPRICE2_NOO}", OracleDbType.Int64, ePR.BuyPrice2_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE2_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice2 != -9999999 ? new OracleParameter($"p{__ABUYPRICE2_MDEY}", OracleDbType.Decimal, ePR.BuyPrice2_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE2_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice2 != -9999999 ? new OracleParameter($"p{__ABUYPRICE2_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice2_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE2_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice2 != -9999999 ? new OracleParameter($"p{__ASELLPRICE2}", OracleDbType.Decimal, ePR.SellPrice2, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE2}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice2 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY2}", OracleDbType.Int64, ePR.SellQuantity2, ParameterDirection.Input): new OracleParameter($"p{__ASELLQUANTITY2}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice2 != -9999999 ? new OracleParameter($"p{__ASELLPRICE2_NOO}", OracleDbType.Int64, ePR.SellPrice2_NOO, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE2_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice2 != -9999999 ? new OracleParameter($"p{__ASELLPRICE2_MDEY}", OracleDbType.Decimal, ePR.SellPrice2_MDEY, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE2_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice2 != -9999999 ? new OracleParameter($"p{__ASELLPRICE2_MDEMMS}", OracleDbType.Int64, ePR.SellPrice2_MDEMMS, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE2_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					//TOP 3
+					ePR.BuyPrice3 != -9999999 ? new OracleParameter($"p{__ABUYPRICE3}", OracleDbType.Decimal, ePR.BuyPrice3, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE3}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice3 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY3}", OracleDbType.Int64, ePR.BuyQuantity3, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY3}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice3 != -9999999 ? new OracleParameter($"p{__ABUYPRICE3_NOO}", OracleDbType.Int64, ePR.BuyPrice3_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE3_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice3 != -9999999 ? new OracleParameter($"p{__ABUYPRICE3_MDEY}", OracleDbType.Decimal, ePR.BuyPrice3_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE3_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice3 != -9999999 ? new OracleParameter($"p{__ABUYPRICE3_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice3_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE3_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice3 != -9999999 ? new OracleParameter($"p{__ASELLPRICE3}", OracleDbType.Decimal, ePR.SellPrice3, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE3}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice3 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY3}", OracleDbType.Int64, ePR.SellQuantity3, ParameterDirection.Input): new OracleParameter($"p{__ASELLQUANTITY3}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice3 != -9999999 ? new OracleParameter($"p{__ASELLPRICE3_NOO}", OracleDbType.Int64, ePR.SellPrice3_NOO, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE3_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice3 != -9999999 ? new OracleParameter($"p{__ASELLPRICE3_MDEY}", OracleDbType.Decimal, ePR.SellPrice3_MDEY, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE3_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice3 != -9999999 ? new OracleParameter($"p{__ASELLPRICE3_MDEMMS}", OracleDbType.Int64, ePR.SellPrice3_MDEMMS, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE3_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					//TOP 4
+					 ePR.BuyPrice4 != -9999999 ? new OracleParameter($"p{__ABUYPRICE4}", OracleDbType.Decimal, ePR.BuyPrice4, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE4}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice4 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY4}", OracleDbType.Int64, ePR.BuyQuantity4, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY4}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice4 != -9999999 ? new OracleParameter($"p{__ABUYPRICE4_NOO}", OracleDbType.Int64, ePR.BuyPrice4_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE4_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice4 != -9999999 ? new OracleParameter($"p{__ABUYPRICE4_MDEY}", OracleDbType.Decimal, ePR.BuyPrice4_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE4_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice4 != -9999999 ? new OracleParameter($"p{__ABUYPRICE4_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice4_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE4_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice4 != -9999999 ? new OracleParameter($"p{__ASELLPRICE4}", OracleDbType.Decimal, ePR.SellPrice4, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE4}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice4 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY4}", OracleDbType.Int64, ePR.SellQuantity4, ParameterDirection.Input): new OracleParameter($"p{__ASELLQUANTITY4}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice4 != -9999999 ? new OracleParameter($"p{__ASELLPRICE4_NOO}", OracleDbType.Int64, ePR.SellPrice4_NOO, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE4_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice4 != -9999999 ? new OracleParameter($"p{__ASELLPRICE4_MDEY}", OracleDbType.Decimal, ePR.SellPrice4_MDEY, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE4_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice4 != -9999999 ? new OracleParameter($"p{__ASELLPRICE4_MDEMMS}", OracleDbType.Int64, ePR.SellPrice4_MDEMMS, ParameterDirection.Input): new OracleParameter($"p{__ASELLPRICE4_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					//TOP 5
+					ePR.BuyPrice5 != -9999999 ? new OracleParameter($"p{__ABUYPRICE5}", OracleDbType.Decimal, ePR.BuyPrice5, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE5}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice5 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY5}", OracleDbType.Int64, ePR.BuyQuantity5, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY5}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice5 != -9999999 ? new OracleParameter($"p{__ABUYPRICE5_NOO}", OracleDbType.Int64, ePR.BuyPrice5_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE5_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice5 != -9999999 ? new OracleParameter($"p{__ABUYPRICE5_MDEY}", OracleDbType.Decimal, ePR.BuyPrice5_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE5_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice5 != -9999999 ? new OracleParameter($"p{__ABUYPRICE5_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice5_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE5_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice5 != -9999999 ? new OracleParameter($"p{__ASELLPRICE5}", OracleDbType.Decimal, ePR.SellPrice5, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE5}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice5 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY5}", OracleDbType.Int64, ePR.SellQuantity5, ParameterDirection.Input) : new OracleParameter($"p{__ASELLQUANTITY5}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice5 != -9999999 ? new OracleParameter($"p{__ASELLPRICE5_NOO}", OracleDbType.Int64, ePR.SellPrice5_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE5_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice5 != -9999999 ? new OracleParameter($"p{__ASELLPRICE5_MDEY}", OracleDbType.Decimal, ePR.SellPrice5_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE5_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice5 != -9999999 ? new OracleParameter($"p{__ASELLPRICE5_MDEMMS}", OracleDbType.Int64, ePR.SellPrice5_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE5_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+                
+					//TOP 6
+					ePR.BuyPrice6 != -9999999 ? new OracleParameter($"p{__ABUYPRICE6}", OracleDbType.Decimal, ePR.BuyPrice6, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE6}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice6 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY6}", OracleDbType.Int64, ePR.BuyQuantity6, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY6}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice6 != -9999999 ? new OracleParameter($"p{__ABUYPRICE6_NOO}", OracleDbType.Int64, ePR.BuyPrice6_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE6_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice6 != -9999999 ? new OracleParameter($"p{__ABUYPRICE6_MDEY}", OracleDbType.Decimal, ePR.BuyPrice6_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE6_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice6 != -9999999 ? new OracleParameter($"p{__ABUYPRICE6_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice6_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE6_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice6 != -9999999 ? new OracleParameter($"p{__ASELLPRICE6}", OracleDbType.Decimal, ePR.SellPrice6, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE6}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice6 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY6}", OracleDbType.Int64, ePR.SellQuantity6, ParameterDirection.Input) : new OracleParameter($"p{__ASELLQUANTITY6}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice6 != -9999999 ? new OracleParameter($"p{__ASELLPRICE6_NOO}", OracleDbType.Int64, ePR.SellPrice6_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE6_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice6 != -9999999 ? new OracleParameter($"p{__ASELLPRICE6_MDEY}", OracleDbType.Decimal, ePR.SellPrice6_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE6_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice6 != -9999999 ? new OracleParameter($"p{__ASELLPRICE6_MDEMMS}", OracleDbType.Int64, ePR.SellPrice6_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE6_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					//TOP 7
+					 ePR.BuyPrice7 != -9999999 ? new OracleParameter($"p{__ABUYPRICE7}", OracleDbType.Decimal, ePR.BuyPrice7, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE7}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice7 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY7}", OracleDbType.Int64, ePR.BuyQuantity7, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY7}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice7 != -9999999 ? new OracleParameter($"p{__ABUYPRICE7_NOO}", OracleDbType.Int64, ePR.BuyPrice7_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE7_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice7 != -9999999 ? new OracleParameter($"p{__ABUYPRICE7_MDEY}", OracleDbType.Decimal, ePR.BuyPrice7_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE7_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice7 != -9999999 ? new OracleParameter($"p{__ABUYPRICE7_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice7_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE7_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice7 != -9999999 ? new OracleParameter($"p{__ASELLPRICE7}", OracleDbType.Decimal, ePR.SellPrice7, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE7}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice7 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY7}", OracleDbType.Int64, ePR.SellQuantity7, ParameterDirection.Input) : new OracleParameter($"p{__ASELLQUANTITY7}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice7 != -9999999 ? new OracleParameter($"p{__ASELLPRICE7_NOO}", OracleDbType.Int64, ePR.SellPrice7_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE7_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice7 != -9999999 ? new OracleParameter($"p{__ASELLPRICE7_MDEY}", OracleDbType.Decimal, ePR.SellPrice7_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE7_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice7 != -9999999 ? new OracleParameter($"p{__ASELLPRICE7_MDEMMS}", OracleDbType.Int64, ePR.SellPrice7_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE7_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					//TOP 8
+					ePR.BuyPrice8 != -9999999 ? new OracleParameter($"p{__ABUYPRICE8}", OracleDbType.Decimal, ePR.BuyPrice8, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE8}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice8 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY8}", OracleDbType.Int64, ePR.BuyQuantity8, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY8}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice8 != -9999999 ? new OracleParameter($"p{__ABUYPRICE8_NOO}", OracleDbType.Int64, ePR.BuyPrice8_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE8_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice8 != -9999999 ? new OracleParameter($"p{__ABUYPRICE8_MDEY}", OracleDbType.Decimal, ePR.BuyPrice8_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE8_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice8 != -9999999 ? new OracleParameter($"p{__ABUYPRICE8_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice8_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE8_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice8 != -9999999 ? new OracleParameter($"p{__ASELLPRICE8}", OracleDbType.Decimal, ePR.SellPrice8, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE8}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice8 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY8}", OracleDbType.Int64, ePR.SellQuantity8, ParameterDirection.Input) : new OracleParameter($"p{__ASELLQUANTITY8}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice8 != -9999999 ? new OracleParameter($"p{__ASELLPRICE8_NOO}", OracleDbType.Int64, ePR.SellPrice8_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE8_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice8 != -9999999 ? new OracleParameter($"p{__ASELLPRICE8_MDEY}", OracleDbType.Decimal, ePR.SellPrice8_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE8_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice8 != -9999999 ? new OracleParameter($"p{__ASELLPRICE8_MDEMMS}", OracleDbType.Int64, ePR.SellPrice8_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE8_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					//TOP 9
+					ePR.BuyPrice9 != -9999999 ? new OracleParameter($"p{__ABUYPRICE9}", OracleDbType.Decimal, ePR.BuyPrice9, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE9}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice9 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY9}", OracleDbType.Int64, ePR.BuyQuantity9, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY9}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice9 != -9999999 ? new OracleParameter($"p{__ABUYPRICE9_NOO}", OracleDbType.Int64, ePR.BuyPrice9_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE9_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice9 != -9999999 ? new OracleParameter($"p{__ABUYPRICE9_MDEY}", OracleDbType.Decimal, ePR.BuyPrice9_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE9_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice9 != -9999999 ? new OracleParameter($"p{__ABUYPRICE9_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice9_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE9_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice9 != -9999999 ? new OracleParameter($"p{__ASELLPRICE9}", OracleDbType.Decimal, ePR.SellPrice9, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE9}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice9 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY9}", OracleDbType.Int64, ePR.SellQuantity9, ParameterDirection.Input) : new OracleParameter($"p{__ASELLQUANTITY9}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice9 != -9999999 ? new OracleParameter($"p{__ASELLPRICE9_NOO}", OracleDbType.Int64, ePR.SellPrice9_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE9_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice9 != -9999999 ? new OracleParameter($"p{__ASELLPRICE9_MDEY}", OracleDbType.Decimal, ePR.SellPrice9_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE9_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice9 != -9999999 ? new OracleParameter($"p{__ASELLPRICE9_MDEMMS}", OracleDbType.Int64, ePR.SellPrice9_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE9_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					//TOP 10
+					ePR.BuyPrice10 != -9999999 ? new OracleParameter($"p{__ABUYPRICE10}", OracleDbType.Decimal, ePR.BuyPrice10, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE10}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice10 != -9999999 ? new OracleParameter($"p{__ABUYQUANTITY10}", OracleDbType.Int64, ePR.BuyQuantity10, ParameterDirection.Input) : new OracleParameter($"p{__ABUYQUANTITY10}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice10 != -9999999 ? new OracleParameter($"p{__ABUYPRICE10_NOO}", OracleDbType.Int64, ePR.BuyPrice10_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE10_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.BuyPrice10 != -9999999 ? new OracleParameter($"p{__ABUYPRICE10_MDEY}", OracleDbType.Decimal, ePR.BuyPrice10_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE10_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.BuyPrice10 != -9999999 ? new OracleParameter($"p{__ABUYPRICE10_MDEMMS}", OracleDbType.Int64, ePR.BuyPrice10_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ABUYPRICE10_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.SellPrice10 != -9999999 ? new OracleParameter($"p{__ASELLPRICE10}", OracleDbType.Decimal, ePR.SellPrice10, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE10}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice10 != -9999999 ? new OracleParameter($"p{__ASELLQUANTITY10}", OracleDbType.Int64, ePR.SellQuantity10, ParameterDirection.Input) : new OracleParameter($"p{__ASELLQUANTITY10}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice10 != -9999999 ? new OracleParameter($"p{__ASELLPRICE10_NOO}", OracleDbType.Int64, ePR.SellPrice10_NOO, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE10_NOO}", OracleDbType.Int64, null, ParameterDirection.Input),
+					ePR.SellPrice10 != -9999999 ? new OracleParameter($"p{__ASELLPRICE10_MDEY}", OracleDbType.Decimal, ePR.SellPrice10_MDEY, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE10_MDEY}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.SellPrice10 != -9999999 ? new OracleParameter($"p{__ASELLPRICE10_MDEMMS}", OracleDbType.Int64, ePR.SellPrice10_MDEMMS, ParameterDirection.Input) : new OracleParameter($"p{__ASELLPRICE10_MDEMMS}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+                    ePR.MatchPrice != -9999999 ? new OracleParameter($"p{__AMATCHPRICE}", OracleDbType.Decimal, ePR.MatchPrice, ParameterDirection.Input) : new OracleParameter($"p{__AMATCHPRICE}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.MatchQuantity != -9999999 ? new OracleParameter($"p{__AMATCHQUANTITY}", OracleDbType.Int64, ePR.MatchQuantity, ParameterDirection.Input): new OracleParameter($"p{__AMATCHQUANTITY}", OracleDbType.Int64, null, ParameterDirection.Input),
+
+					ePR.OpenPrice != -9999999 ? new OracleParameter($"p{__AOPENPRICE}", OracleDbType.Decimal, ePR.OpenPrice, ParameterDirection.Input) : new OracleParameter($"p{__AOPENPRICE}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.ClosePrice != -9999999 ? new OracleParameter($"p{__ACLOSEPRICE}", OracleDbType.Decimal, ePR.ClosePrice, ParameterDirection.Input) : new OracleParameter($"p{__ACLOSEPRICE}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.HighestPrice != -9999999 ? new OracleParameter($"p{__AHIGHESTPRICE}", OracleDbType.Decimal, ePR.HighestPrice, ParameterDirection.Input): new OracleParameter($"p{__AHIGHESTPRICE}", OracleDbType.Decimal, null, ParameterDirection.Input),
+					ePR.LowestPrice != -9999999 ? new OracleParameter($"p{__ALOWESTPRICE}", OracleDbType.Decimal, ePR.LowestPrice, ParameterDirection.Input): new OracleParameter($"p{__ALOWESTPRICE}", OracleDbType.Decimal, null, ParameterDirection.Input),
+
 					//,new OracleParameter($"p{__REPEATINGDATAFIX}",    OracleDbType.Varchar2,    ePR.RepeatingDataFix,   ParameterDirection.Input)
 					//,new OracleParameter($"p{__REPEATINGDATAJSON}",   OracleDbType.Varchar2,    ePR.RepeatingDataJson,  ParameterDirection.Input)
-					,new OracleParameter($"p{__ACHECKSUM}",           OracleDbType.Varchar2,    ePR.CheckSum,           ParameterDirection.Input)
+					new OracleParameter($"p{__ACHECKSUM}",           OracleDbType.Varchar2,    ePR.CheckSum,           ParameterDirection.Input)
 					,new OracleParameter($"p{__RETURNCODE}",          OracleDbType.Int64,       null,                  ParameterDirection.Output)
 					,new OracleParameter($"p{__RETURNMESS}",          OracleDbType.Varchar2,    500, null,             ParameterDirection.Output) // 2020-07-27 14:47:53 ngocta2 phai khai bao size cua var nay
 				};

@@ -65,55 +65,6 @@ namespace PriceLib.Implementations
 				return new EDalResult() { Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL, Message = ex.Message, Data = null };
 			}
 		}
-		//public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
-		//{
-		//	Stopwatch m_SW = Stopwatch.StartNew();
-		//	TExecutionContext ec = this._cS6GApp.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} script={scripts}", true);
-		//	ISqlServer<ESecurityDefinition> sqlServer = new CSqlServer<ESecurityDefinition>(this._cS6GApp, this._ePriceConfig.ConnectionMssql);
-
-		//	try
-		//	{
-		//		int successCount = 0;
-		//		foreach (var script in scripts)
-		//		{
-		//			try
-		//			{
-		//				int rowsAffected = await sqlServer.ExecuteAsync(script);
-		//				if (rowsAffected > 0) successCount++;
-		//			}
-		//			catch (Exception ex)
-		//			{
-		//				this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-		//				return new EDalResult()
-		//				{
-		//					Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
-		//					Message = ex.Message,
-		//					Data = null
-		//				};
-		//			}
-		//		}
-
-		//		var result = new EDalResult()
-		//		{
-		//			Code = EDalResult.__CODE_SUCCESS,
-		//			Message = $"{successCount}/{scripts.Count} scripts executed successfully.",
-		//			Data = successCount
-		//		};
-
-		//		Console.WriteLine("SQL_TIMER__________________________ :" + " - " + m_SW.ElapsedMilliseconds.ToString());
-		//		return result;
-		//	}
-		//	catch (Exception ex)
-		//	{
-		//		this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-		//		return new EDalResult()
-		//		{
-		//			Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
-		//			Message = ex.Message,
-		//			Data = null
-		//		};
-		//	}
-		//}
 		public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
 		{
 			Stopwatch m_SW = Stopwatch.StartNew();
@@ -122,33 +73,81 @@ namespace PriceLib.Implementations
 
 			try
 			{
-				EDalResult result;
-
-				var tasks = scripts.Select(async script =>
+				int successCount = 0;
+				foreach (var script in scripts)
 				{
 					try
 					{
-						await sqlServer.ExecuteAsync(script);
+						int rowsAffected = await sqlServer.ExecuteAsync(script);
+						if (rowsAffected > 0) successCount++;
 					}
 					catch (Exception ex)
 					{
 						this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+						return new EDalResult()
+						{
+							Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
+							Message = ex.Message,
+							Data = null
+						};
 					}
-				});
-				await Task.WhenAll(tasks);
+				}
 
-				result = new EDalResult() { Code = EDalResult.__CODE_SUCCESS, Message = EDalResult.__STRING_SUCCESS, Data = 0 };
-				Console.WriteLine("SQL_TIMER___________________________:" + " - " + m_SW.ElapsedMilliseconds.ToString());
+				var result = new EDalResult()
+				{
+					Code = EDalResult.__CODE_SUCCESS,
+					Message = $"{successCount}/{scripts.Count} scripts executed successfully.",
+					Data = successCount
+				};
+				//Console.WriteLine("SQL_TIMER__________________________ :" + " - " + m_SW.ElapsedMilliseconds.ToString());
 				return result;
 			}
 			catch (Exception ex)
 			{
-				// log error + buffer data
 				this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
-				// error => return null
-				return new EDalResult() { Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL, Message = ex.Message, Data = null };
+				return new EDalResult()
+				{
+					Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL,
+					Message = ex.Message,
+					Data = null
+				};
 			}
 		}
+		//public async Task<EDalResult> ExecuteScriptOracle(List<string> scripts)
+		//{
+		//	Stopwatch m_SW = Stopwatch.StartNew();
+		//	TExecutionContext ec = this._cS6GApp.DebugLogger.WriteBufferBegin($"{EGlobalConfig.__STRING_BEFORE} script={scripts}", true);
+		//	ISqlServer<ESecurityDefinition> sqlServer = new CSqlServer<ESecurityDefinition>(this._cS6GApp, this._ePriceConfig.ConnectionMssql);
+
+		//	try
+		//	{
+		//		EDalResult result;
+
+		//		var tasks = scripts.Select(async script =>
+		//		{
+		//			try
+		//			{
+		//				await sqlServer.ExecuteAsync(script);
+		//			}
+		//			catch (Exception ex)
+		//			{
+		//				this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+		//			}
+		//		});
+		//		await Task.WhenAll(tasks);
+
+		//		result = new EDalResult() { Code = EDalResult.__CODE_SUCCESS, Message = EDalResult.__STRING_SUCCESS, Data = 0 };
+		//		//Console.WriteLine("SQL_TIMER___________________________:" + " - " + m_SW.ElapsedMilliseconds.ToString());
+		//		return result;
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		// log error + buffer data
+		//		this._cS6GApp.ErrorLogger.LogErrorContext(ex, ec);
+		//		// error => return null
+		//		return new EDalResult() { Code = EGlobalConfig.__CODE_ERROR_IN_LAYER_DAL, Message = ex.Message, Data = null };
+		//	}
+		//}
 		/// <summary>
 		/// 2020-07-24 10:55:58 ngocta2
 		/// 4.1 Security Definition
@@ -2328,7 +2327,6 @@ namespace PriceLib.Implementations
                     dynamicParameters.Add($"@{__ABUYPRICE10_MDEY}", ePR.BuyPrice10_MDEY, DbType.Decimal, ParameterDirection.Input);
                     dynamicParameters.Add($"@{__ABUYPRICE10_MDEMMS}", ePR.BuyPrice10_MDEMMS, DbType.Int64, ParameterDirection.Input);
                 }
-
 
                 //Bán
                 if (ePR.SellPrice1 != -9999999 || ePR.SellPrice2 != -9999999 || ePR.SellPrice3 != -9999999)

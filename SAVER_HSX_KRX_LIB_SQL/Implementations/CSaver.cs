@@ -200,7 +200,7 @@ namespace BaseSaverLib.Implementations
                 }
                 if (_msgArray != null)
                 {
-                    this._handler.BuildScriptSQL(_msgArray);
+                    this._handler.BuildScriptSQL(_msgArray).GetAwaiter().GetResult();
                 }
             }
             catch (Exception ex)

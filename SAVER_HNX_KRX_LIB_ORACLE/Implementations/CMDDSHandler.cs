@@ -165,7 +165,7 @@ namespace BaseSaverLib.Implementations
 
                             ScriptOracle.Add(oracleBatchBuilder.ToString());
 
-                            this._app.SqlLogger.LogSciptSQL($"Oracle_{msgTypes}", $"{oracleBatchBuilder.ToString().Length}");
+                            this._app.SqlLogger.LogSciptSQL($"Oracle_{msgTypes}", $"{oracleBatchBuilder.ToString()}");
                         }
                     }
                     await this._repository.ExecBulkScript_Oracle(ScriptOracle);
@@ -582,18 +582,18 @@ namespace BaseSaverLib.Implementations
 
                                     bulkCopy.WriteToServer(dt);
                                 }
-                                Console.WriteLine("Bulk insert thành công.");
+                                //Console.WriteLine("Bulk insert thành công.");
                             }
                             catch (Exception ex)
                             {
                                 Console.WriteLine("Bulk insert lỗi: " + ex.Message);
                             }
-                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X", conn))
-                            //{
-                            //    checkCmd.Transaction = transaction;
-                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            //}
+                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X", conn))
+                            {
+                                checkCmd.Transaction = transaction;
+                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            }
                             // Gọi stored procedure để insert/update dữ liệu vào bảng chính
                             using (OracleCommand cmdProc = new OracleCommand("PROC_MERGE_MSG_X", conn))
                             {
@@ -614,12 +614,12 @@ namespace BaseSaverLib.Implementations
                                 cmdTruncate.Transaction = transaction;
                                 cmdTruncate.ExecuteNonQuery();
                             }
-                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X", conn))
-                            //{
-                            //    checkCmd.Transaction = transaction;
-                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            //}
+                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_X", conn))
+                            {
+                                checkCmd.Transaction = transaction;
+                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            }
                             // Commit transaction sau khi tất cả các thao tác thành công
                             transaction.Commit();
                         }
@@ -651,7 +651,7 @@ namespace BaseSaverLib.Implementations
                     using (var bulkCopy = new OracleBulkCopy(conn))
                     {
                         bulkCopy.DestinationTableName = "tprice_intraday";
-                        bulkCopy.BatchSize = 5000;
+                        bulkCopy.BatchSize = 2000;
 
                         foreach (DataColumn col in dt.Columns)
                         {
@@ -853,12 +853,12 @@ namespace BaseSaverLib.Implementations
                             {
                                 Console.WriteLine("Bulk insert lỗi: " + ex.Message);
                             }
-                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
-                            //{
-                            //    checkCmd.Transaction = transaction;
-                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            //}
+                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
+                            {
+                                checkCmd.Transaction = transaction;
+                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            }
                             // Gọi stored procedure để insert/update dữ liệu vào bảng chính
                             using (OracleCommand cmdProc = new OracleCommand("PROC_MERGE_MSG_W", conn))
                             {
@@ -879,12 +879,12 @@ namespace BaseSaverLib.Implementations
                                 cmdTruncate.Transaction = transaction;
                                 cmdTruncate.ExecuteNonQuery();
                             }
-                            //using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
-                            //{
-                            //    checkCmd.Transaction = transaction;
-                            //    var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                            //    Console.WriteLine("Số dòng trong bảng tạm: " + count);
-                            //}
+                            using (OracleCommand checkCmd = new OracleCommand("SELECT COUNT(*) FROM table_temporary_W_HSX", conn))
+                            {
+                                checkCmd.Transaction = transaction;
+                                var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                            }
                             // Commit transaction sau khi tất cả các thao tác thành công
                             transaction.Commit();
                         }
@@ -914,7 +914,7 @@ namespace BaseSaverLib.Implementations
                     using (var bulkCopy = new OracleBulkCopy(conn))
                     {
                         bulkCopy.DestinationTableName = "tpricerecovery_intraday";
-                        bulkCopy.BatchSize = 5000;
+                        bulkCopy.BatchSize = 2000;
 
                         foreach (DataColumn col in dt.Columns)
                         {

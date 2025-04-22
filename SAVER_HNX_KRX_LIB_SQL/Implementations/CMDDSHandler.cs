@@ -42,9 +42,9 @@ namespace BaseSaverLib.Implementations
         private readonly SemaphoreSlim semaphoreREDIS = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim semaphoreSQL = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim semaphoreORACLE = new SemaphoreSlim(1, 1);
-        private ConcurrentQueue<EPrice> m_queueRedis = new ConcurrentQueue<EPrice>();
-        private ConcurrentQueue<SqlMessage> m_queueSQL = new ConcurrentQueue<SqlMessage>();
-        private ConcurrentQueue<SqlMessageWithObj> m_queueOracle = new ConcurrentQueue<SqlMessageWithObj>();
+        //private ConcurrentQueue<EPrice> m_queueRedis = new ConcurrentQueue<EPrice>();
+        //private ConcurrentQueue<SqlMessage> m_queueSQL = new ConcurrentQueue<SqlMessage>();
+        //private ConcurrentQueue<SqlMessageWithObj> m_queueOracle = new ConcurrentQueue<SqlMessageWithObj>();
         public HashSet<string> marketDataTypes = new HashSet<string> { "X", "MF", "M8", "ME", "M7", "f" };
         // Dic lưu sequence trước theo msgType
         private readonly Dictionary<string, Dictionary<string, long>> dic_preSeq = new Dictionary<string, Dictionary<string, long>>();
@@ -141,7 +141,7 @@ namespace BaseSaverLib.Implementations
                             mssqlList.Add(processMessageResult.Script.MssqlScript);                            
                         }
                     }
-                    if(currentSeq != 0 || strExchange != null)
+                    if(currentSeq != 0 && strExchange != null)
                     {
                         string groupMsgType = marketDataTypes.Contains(msgType) ? "MarketData" : msgType;
                         // Nếu là DVX thì bổ sung thêm "MX" vào danh sách MarketData
@@ -175,10 +175,10 @@ namespace BaseSaverLib.Implementations
                                         for (long missing = lastSeq + 1; missing < currentSeq; missing++)
                                         {
                                             gapInfo.MissingSequences.Add(missing);
-                                            this._app.SqlLogger.LogSciptSQL(
-                                                $"SEQ_MISS_{strExchange}_{groupMsgType}",
-                                                $"Missing Sequence: {missing} (Old: {lastSeq}, New: {currentSeq})"
-                                            );
+                                            //this._app.SqlLogger.LogSciptSQL(
+                                            //    $"SEQ_MISS_{strExchange}_{groupMsgType}",
+                                            //    $"Missing Sequence: {missing} (Old: {lastSeq}, New: {currentSeq})"
+                                            //);
                                         }
 
                                         if (!dic_missSeq.ContainsKey(strExchange))
@@ -211,7 +211,7 @@ namespace BaseSaverLib.Implementations
                     //insert bang Intraday
                     await fnc_BulkInsert_tblPrice(lst_eP);
                     List<EPrice> lstSS_eP = await fnc_Update_tblPrice(lst_eP);
-                    Console.WriteLine("MsgX_SnapShot:" + lstSS_eP.Count.ToString());
+                    //Console.WriteLine("MsgX_SnapShot:" + lstSS_eP.Count.ToString());
 
                     foreach (var eP in lstSS_eP) 
                     {
@@ -230,7 +230,7 @@ namespace BaseSaverLib.Implementations
                     await fnc_BulkInsert_tblPriceRecovery(lst_ePR);
 
                     List<EPriceRecovery> lstSS_ePR = await fnc_Update_tblPriceRecovery(lst_ePR);
-                    Console.WriteLine("MsgW_SnapShot:" + lstSS_ePR.Count.ToString());
+                    //Console.WriteLine("MsgW_SnapShot:" + lstSS_ePR.Count.ToString());
                     foreach (var ePR in lstSS_ePR)
                     {
                         EBulkScript eBulkScript_W = await _repository.GetScriptPriceRecoveryAll(ePR);
@@ -242,22 +242,46 @@ namespace BaseSaverLib.Implementations
                         mssqlList.Add(eBulkScript_W.MssqlScript);
                     }
                 }
-                // Tạo batch script cho SQL Server
-                foreach(var (msgType, scripts) in mssqlScriptsByType)
+                if (totalcount > 0)
                 {
-                    var mssqlBatchBuilder = new StringBuilder(sqlBeginTransaction);
-                    foreach (var script in scripts)
-                    {
-                        mssqlBatchBuilder.Append(sqlExec).Append(script);
-                    }
-                    mssqlBatchBuilder.Append(EGlobalConfig.__STRING_RETURN_NEW_LINE).Append(sqlCommitTransaction);
-   
-                    Scriptmssql.Add(mssqlBatchBuilder.ToString());
+                    // Tạo batch script cho SQL Server
+                    //foreach (var (msgType, scripts) in mssqlScriptsByType)
+                    //{
+                    //    var mssqlBatchBuilder = new StringBuilder(sqlBeginTransaction);
+                    //    foreach (var script in scripts)
+                    //    {
+                    //        mssqlBatchBuilder.Append(sqlExec).Append(script);
+                    //    }
+                    //    mssqlBatchBuilder.Append(EGlobalConfig.__STRING_RETURN_NEW_LINE).Append(sqlCommitTransaction);
 
-                    //Ghi log count 
-                    this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString()}");
+                    //    Scriptmssql.Add(mssqlBatchBuilder.ToString());
+
+                    //    //Ghi log count 
+                    //    this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString()}");
+                    //}
+
+                    //1 transaction toi da 200 msg
+                    int batchSizePerTransaction = 200;
+                    // Tạo batch script cho SQL Server
+                    foreach (var (msgType, scripts) in mssqlScriptsByType)
+                    {
+                        for (int i = 0; i < scripts.Count; i += batchSizePerTransaction)
+                        {
+                            var scriptsBatch = scripts.Skip(i).Take(batchSizePerTransaction);
+                            var mssqlBatchBuilder = new StringBuilder(sqlBeginTransaction);
+                            foreach (var script in scriptsBatch)
+                            {
+                                mssqlBatchBuilder.Append(sqlExec).Append(script);
+                            }
+                            mssqlBatchBuilder.Append(EGlobalConfig.__STRING_RETURN_NEW_LINE).Append(sqlCommitTransaction);
+                            Scriptmssql.Add(mssqlBatchBuilder.ToString());
+
+                            //Ghi log count 
+                            this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.Length.ToString()}");
+                        }
+                    }
                 }
-                Console.WriteLine("SQL_TIMER_BULK_INSERT______________________________:" + sW.ElapsedMilliseconds.ToString());
+                //Console.WriteLine("SQL_TIMER_BULK_INSERT______________________________:" + sW.ElapsedMilliseconds.ToString());
                 // Thực thi batch scripts
                 if (Scriptmssql.Any())
                 {

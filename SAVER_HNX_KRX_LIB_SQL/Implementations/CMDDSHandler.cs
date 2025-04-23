@@ -103,6 +103,10 @@ namespace BaseSaverLib.Implementations
                 var sW = Stopwatch.StartNew();
                 List<EPrice> lst_eP = new List<EPrice>();
                 List<EPriceRecovery> lst_ePR = new List<EPriceRecovery>();
+                List<EIndex> lst_eI = new List<EIndex>();
+                List<EDeemTradePrice> lst_eDTP = new List<EDeemTradePrice>();
+                List<ETradingResultOfForeignInvestors> lst_ETRFI = new List<ETradingResultOfForeignInvestors>();
+
                 // Duyệt từng tin nhắn và nhóm theo msgType
                 foreach (string msg in arrMsg)
                 {
@@ -125,6 +129,33 @@ namespace BaseSaverLib.Implementations
                         currentSeq = ePR.MsgSeqNum;
                         strExchange = ePR.MarketID;
                         lst_ePR.Add(ePR);
+                    }
+                    else if(msgType == EIndex.__MSG_TYPE)
+                    {
+                        EIndex eI = await this.Raw2Entity<EIndex>(msg);
+                        eI.TransDate = this._app.Common.FixToTransDateString(eI.SendingTime.ToString());
+                        eI.TransactTime = this._app.Common.FixToTimeString(eI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime	
+                        currentSeq = eI.MsgSeqNum;
+                        strExchange = eI.MarketID;
+                        lst_eI.Add(eI);
+                    }
+                    else if(msgType == EDeemTradePrice.__MSG_TYPE)
+                    {
+                        EDeemTradePrice eDTP = await this.Raw2Entity<EDeemTradePrice>(msg);
+                        currentSeq = eDTP.MsgSeqNum;
+                        strExchange = eDTP.MarketID;
+                        lst_eDTP.Add(eDTP);
+                    }
+                    else if(msgType == ETradingResultOfForeignInvestors.__MSG_TYPE)
+                    {
+                        ETradingResultOfForeignInvestors ETRFI = await this.Raw2Entity<ETradingResultOfForeignInvestors>(msg);
+                        if (ETRFI.TransactTime != null)
+                        {
+                            ETRFI.TransactTime = this._app.Common.FixToTimeString(ETRFI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime	
+                        }
+                        currentSeq = ETRFI.MsgSeqNum;
+                        strExchange = ETRFI.MarketID;
+                        lst_ETRFI.Add(ETRFI);   
                     }
                     else
                     {
@@ -242,24 +273,56 @@ namespace BaseSaverLib.Implementations
                         mssqlList.Add(eBulkScript_W.MssqlScript);
                     }
                 }
+                if (lst_eI.Count > 0)
+                {
+                    await fnc_BulkInsert_tblIndex(lst_eI);
+                    List<EIndex> lstSS_eI = await fnc_Update_tblIndex(lst_eI);
+
+                    foreach(var eI in lstSS_eI)
+                    {
+                        EBulkScript eBulkScript_M1 = await _repository.GetScriptIndex(eI);
+                        if (!mssqlScriptsByType.TryGetValue(EIndex.__MSG_TYPE, out var mssqlList))
+                        {
+                            mssqlList = new List<string>();
+                            mssqlScriptsByType[EIndex.__MSG_TYPE] = mssqlList;
+                        }
+                        mssqlList.Add(eBulkScript_M1.MssqlScript);
+                    }
+
+                }
+                if(lst_eDTP.Count > 0)
+                {
+                    await fnc_BulkInsert_tblDeemTradePrice(lst_eDTP);
+                    List<EDeemTradePrice> lstSS_eDTP = await fnc_Update_tblDeemTradePrice(lst_eDTP);
+                    foreach(var eDTP in lstSS_eDTP)
+                    {
+                        EBulkScript eBulkScript_ME = await _repository.GetScriptDeemTradePrice(eDTP);
+
+                        if (!mssqlScriptsByType.TryGetValue(EDeemTradePrice.__MSG_TYPE, out var mssqlList))
+                        {
+                            mssqlList = new List<string>();
+                            mssqlScriptsByType[EDeemTradePrice.__MSG_TYPE] = mssqlList;
+                        }
+                        mssqlList.Add(eBulkScript_ME.MssqlScript);
+                    }
+                }
+                if(lst_ETRFI.Count > 0)
+                {
+                    await fnc_BulkInsert_tblTradingResultofFI(lst_ETRFI);
+                    List<ETradingResultOfForeignInvestors> lstSS_eTRFI = await fnc_Udpate_tblTradingResultofFI(lst_ETRFI);
+                    foreach(var eTRFI in lstSS_eTRFI)
+                    {
+                        EBulkScript eBulkScript_MT = await _repository.GetScriptTradingResultofForeignInvestors(eTRFI);
+                        if (!mssqlScriptsByType.TryGetValue(ETradingResultOfForeignInvestors.__MSG_TYPE, out var mssqlList))
+                        {
+                            mssqlList = new List<string>();
+                            mssqlScriptsByType[ETradingResultOfForeignInvestors.__MSG_TYPE] = mssqlList;
+                        }
+                        mssqlList.Add(eBulkScript_MT.MssqlScript);
+                    }
+                }
                 if (totalcount > 0)
                 {
-                    // Tạo batch script cho SQL Server
-                    //foreach (var (msgType, scripts) in mssqlScriptsByType)
-                    //{
-                    //    var mssqlBatchBuilder = new StringBuilder(sqlBeginTransaction);
-                    //    foreach (var script in scripts)
-                    //    {
-                    //        mssqlBatchBuilder.Append(sqlExec).Append(script);
-                    //    }
-                    //    mssqlBatchBuilder.Append(EGlobalConfig.__STRING_RETURN_NEW_LINE).Append(sqlCommitTransaction);
-
-                    //    Scriptmssql.Add(mssqlBatchBuilder.ToString());
-
-                    //    //Ghi log count 
-                    //    this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString()}");
-                    //}
-
                     //1 transaction toi da 200 msg
                     int batchSizePerTransaction = 200;
                     // Tạo batch script cho SQL Server
@@ -277,7 +340,7 @@ namespace BaseSaverLib.Implementations
                             Scriptmssql.Add(mssqlBatchBuilder.ToString());
 
                             //Ghi log count 
-                            this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.Length.ToString()}");
+                            this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString()}");
                         }
                     }
                 }
@@ -287,6 +350,7 @@ namespace BaseSaverLib.Implementations
                 {
                     await this._repository.ExecBulkScript_SqlServer(Scriptmssql);
                 }
+                Console.WriteLine("COUNT_MSG_HNX: " + arrMsg.Length + " --- " + "SQL_TIMER__________________:" + sW.ElapsedMilliseconds.ToString());
                 this._monitor.SendStatusToMonitor(
                         this._app.Common.GetLocalDateTime(),
                         this._app.Common.GetLocalIp(),
@@ -578,6 +642,87 @@ namespace BaseSaverLib.Implementations
                 this._app.ErrorLogger.LogError(ex);
             }
         }
+        public async Task fnc_BulkInsert_tblIndex(List<EIndex> lst_eI)
+        {
+            try
+            {
+                DataTable dt = ConvertEIndexListToDataTable(lst_eI);
+                using (var conn = new SqlConnection(this._priceConfig.ConnectionMssql))
+                {
+                    conn.Open();
+                    using (var bulkCopy = new SqlBulkCopy(conn))
+                    {
+                        bulkCopy.DestinationTableName = "tIndex_Intraday";
+                        bulkCopy.BatchSize = 2000;
+
+                        foreach (DataColumn col in dt.Columns)
+                        {
+                            bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+                        }
+
+                        bulkCopy.WriteToServer(dt);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+            }
+        }
+        public async Task fnc_BulkInsert_tblDeemTradePrice(List<EDeemTradePrice> eDTP)
+        {
+            try
+            {
+                DataTable dt = ConvertEDeemTradePriceListToDataTable(eDTP);
+                using (var conn = new SqlConnection(this._priceConfig.ConnectionMssql))
+                {
+                    conn.Open();
+                    using (var bulkCopy = new SqlBulkCopy(conn))
+                    {
+                        bulkCopy.DestinationTableName = "tDeemTradePrice_Intraday";
+                        bulkCopy.BatchSize = 2000;
+
+                        foreach (DataColumn col in dt.Columns)
+                        {
+                            bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+                        }
+
+                        bulkCopy.WriteToServer(dt);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+            }
+        }
+        public async Task fnc_BulkInsert_tblTradingResultofFI(List<ETradingResultOfForeignInvestors> ETRFI)
+        {
+            try
+            {
+                DataTable dt = ConvertETradingResultofFIListToDataTable(ETRFI);
+                using (var conn = new SqlConnection(this._priceConfig.ConnectionMssql))
+                {
+                    conn.Open();
+                    using (var bulkCopy = new SqlBulkCopy(conn))
+                    {
+                        bulkCopy.DestinationTableName = "tTradingResultofFI_Intraday";
+                        bulkCopy.BatchSize = 2000;
+
+                        foreach (DataColumn col in dt.Columns)
+                        {
+                            bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+                        }
+
+                        bulkCopy.WriteToServer(dt);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+            }
+        }
         public async Task<List<EPriceRecovery>> fnc_Update_tblPriceRecovery(List<EPriceRecovery> lst_ePRecovery)
         {
             try
@@ -741,6 +886,132 @@ namespace BaseSaverLib.Implementations
                 return null;
             }
         }
+        public async Task<List<EIndex>> fnc_Update_tblIndex(List<EIndex> lst_eI)
+        {
+            try
+            {
+                // Gộp dữ liệu theo IndexsTypeCode, MarketID, TradingSessionID: giữ object cuối cùng
+                var groupedDict = new Dictionary<string, EIndex>();
+                foreach (var item in lst_eI) 
+                {
+                    string key = $"{item.IndexsTypeCode}|{item.MarketID}|{item.TradingSessionID}";
+                    if (!groupedDict.ContainsKey(key))
+                    {
+                        groupedDict[key] = item;
+                    }
+                    else
+                    {
+                        var existing = groupedDict[key];
+                        existing.BodyLength = item.BodyLength;
+                        existing.MsgSeqNum = item.MsgSeqNum != 0 ? item.MsgSeqNum : existing.MsgSeqNum;
+                        existing.SendingTime = item.SendingTime ?? existing.SendingTime;
+                        
+                        existing.ValueIndexes = item.ValueIndexes != 0 ? item.ValueIndexes : existing.ValueIndexes;
+                        existing.TotalVolumeTraded = item.TotalVolumeTraded != 0 ? item.TotalVolumeTraded : existing.TotalVolumeTraded;
+                        existing.GrossTradeAmt = item.GrossTradeAmt != 0 ? item.GrossTradeAmt : existing.GrossTradeAmt; 
+                        existing.ContauctAccTrdvol = item.ContauctAccTrdvol != 0 ? item.ContauctAccTrdvol : existing.ContauctAccTrdvol;
+                        existing.ContauctAccTrdval = item.ContauctAccTrdval != 0 ? item.ContauctAccTrdval : existing.ContauctAccTrdval;
+                        existing.BlktrdAccTrdvol = item.BlktrdAccTrdvol != 0 ? item.BlktrdAccTrdvol : existing.BlktrdAccTrdvol;
+
+                        existing.BlktrdAccTrdval = item.BlktrdAccTrdval != 0 ? item.BlktrdAccTrdval : existing.BlktrdAccTrdval;
+                        existing.FluctuationUpperLimitIssueCount = item.FluctuationUpperLimitIssueCount != 0 ? item.FluctuationUpperLimitIssueCount : existing.FluctuationUpperLimitIssueCount;
+                        existing.FluctuationUpIssueCount = item.FluctuationUpIssueCount != 0 ? item.FluctuationUpIssueCount : existing.FluctuationUpIssueCount;
+                        existing.FluctuationSteadinessIssueCount = item.FluctuationSteadinessIssueCount != 0 ? item.FluctuationSteadinessIssueCount : existing.FluctuationSteadinessIssueCount;
+                        existing.FluctuationDownIssueCount = item.FluctuationDownIssueCount != 0 ? item.FluctuationDownIssueCount : existing.FluctuationDownIssueCount;
+                        existing.FluctuationLowerLimitIssueCount = item.FluctuationLowerLimitIssueCount != 0 ? item.FluctuationLowerLimitIssueCount : existing.FluctuationLowerLimitIssueCount;
+                        existing.FluctuationUpIssueVolume = item.FluctuationUpIssueVolume != 0 ? item.FluctuationUpIssueVolume : existing.FluctuationUpIssueVolume;
+
+                        existing.FluctuationDownIssueVolume = item.FluctuationDownIssueVolume != 0 ? item.FluctuationDownIssueVolume : existing.FluctuationDownIssueVolume;
+                        existing.FluctuationSteadinessIssueVolume = item.FluctuationSteadinessIssueVolume != 0 ? item.FluctuationSteadinessIssueVolume : existing.FluctuationSteadinessIssueVolume;
+                    }
+                }
+                var distinctList = groupedDict.Values.ToList();
+                return distinctList;
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+                return null;
+            }
+        }
+        public async Task<List<EDeemTradePrice>> fnc_Update_tblDeemTradePrice(List<EDeemTradePrice> lst_eDTP)
+        {
+            try
+            {
+                // Gộp dữ liệu theo Symbol, MarketID, BoardID: giữ object cuối cùng
+                var groupedDict = new Dictionary<string, EDeemTradePrice>();
+                foreach(var item in lst_eDTP)
+                {
+                    string key = $"{item.Symbol}|{item.MarketID}|{item.BoardID}";
+                    if (!groupedDict.ContainsKey(key))
+                    {
+                        groupedDict[key] = item;
+                    }
+                    else
+                    {
+                        var existing = groupedDict[key];
+                        existing.BodyLength = item.BodyLength;
+                        existing.MsgSeqNum = item.MsgSeqNum != 0 ? item.MsgSeqNum : existing.MsgSeqNum;
+                        existing.SendingTime = item.SendingTime ?? existing.SendingTime;
+
+                        existing.ExpectedTradePx = item.ExpectedTradePx != 0 ? item.ExpectedTradePx : existing.ExpectedTradePx;
+                        existing.ExpectedTradeQty = item.ExpectedTradeQty != 0 ? item.ExpectedTradeQty : existing.ExpectedTradeQty;
+                        existing.ExpectedTradeYield = item.ExpectedTradeYield != 0 ? item.ExpectedTradeYield : existing.ExpectedTradeYield;
+                        existing.CheckSum = item.CheckSum;
+                    }
+                }
+                var distinctList = groupedDict.Values.ToList();
+                return distinctList;
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+                return null;
+            }
+        }
+        public async Task<List<ETradingResultOfForeignInvestors>> fnc_Udpate_tblTradingResultofFI(List<ETradingResultOfForeignInvestors> lst_TRFI)
+        {
+            try
+            {
+                // Gộp dữ liệu theo Symbol, MarketID, BoardID: giữ object cuối cùng
+                var groupedDict = new Dictionary<string, ETradingResultOfForeignInvestors>();
+                foreach(var item in lst_TRFI)
+                {
+                    string key = $"{item.Symbol}|{item.MarketID}|{item.BoardID}";
+                    if (!groupedDict.ContainsKey(key))
+                    {
+                        groupedDict[key] = item;
+                    }
+                    else
+                    {
+                        var existing = groupedDict[key];
+                        existing.BodyLength = item.BodyLength;
+                        existing.MsgSeqNum = item.MsgSeqNum != 0 ? item.MsgSeqNum : existing.MsgSeqNum;
+                        existing.SendingTime = item.SendingTime ?? existing.SendingTime;
+                        existing.TradingSessionID = item.TradingSessionID ?? existing.TradingSessionID;
+                        existing.FornInvestTypeCode = item.FornInvestTypeCode;
+
+                        existing.SellVolume = item.SellVolume != 0 ? item.SellVolume : existing.SellVolume;
+                        existing.SellTradeAmount = item.SellTradeAmount != 0 ? item.SellTradeAmount : existing.SellTradeAmount;
+                        existing.BuyVolume = item.BuyVolume != 0 ? item.BuyVolume : existing.BuyVolume;
+                        existing.BuyTradedAmount = item.BuyTradedAmount != 0 ? item.BuyTradedAmount : existing.BuyTradedAmount;
+                        existing.SellVolumeTotal = item.SellVolumeTotal != 0 ? item.SellVolumeTotal : existing.SellVolumeTotal;
+                        existing.SellTradeAmountTotal = item.SellTradeAmountTotal != 0 ? item.SellTradeAmountTotal : existing.SellTradeAmountTotal;
+
+                        existing.BuyVolumeTotal = item.BuyVolumeTotal != 0 ? item.BuyVolumeTotal : existing.BuyVolumeTotal;
+                        existing.BuyTradeAmountTotal = item.BuyTradeAmountTotal != 0 ? item.BuyTradeAmountTotal : existing.BuyTradeAmountTotal;
+                        existing.CheckSum = item.CheckSum;
+                    }
+                }
+                var distinctList = groupedDict.Values.ToList();
+                return distinctList;
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+                return null;
+            }
+        }
         /// <summary>
         /// 2020-08-19 09:23:03 ngocta2
         /// giam lap code, ko tot
@@ -864,14 +1135,14 @@ namespace BaseSaverLib.Implementations
                     //    eBulkScript = await _repository.GetScriptPriceRecoveryAll(ePR);
                     //    break;
                     // 4.13 - Index
-                    case EIndex.__MSG_TYPE:
-                        EIndex eI = await this.Raw2Entity<EIndex>(rawData);
-                        eI.TransDate = this._app.Common.FixToTransDateString(eI.SendingTime.ToString());
-                        eI.TransactTime = this._app.Common.FixToTimeString(eI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime											              
-                        sequence = eI.MsgSeqNum;
-                        strExchange = eI.MarketID;
-                        eBulkScript = await _repository.GetScriptIndex(eI);
-                        break;
+                    //case EIndex.__MSG_TYPE:
+                    //    EIndex eI = await this.Raw2Entity<EIndex>(rawData);
+                    //    eI.TransDate = this._app.Common.FixToTransDateString(eI.SendingTime.ToString());
+                    //    eI.TransactTime = this._app.Common.FixToTimeString(eI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime											              
+                    //    sequence = eI.MsgSeqNum;
+                    //    strExchange = eI.MarketID;
+                    //    eBulkScript = await _repository.GetScriptIndex(eI);
+                    //    break;
                     // 4.14 - Investor per Industry
                     case EInvestorPerIndustry.__MSG_TYPE:
                         EInvestorPerIndustry eIPI = await this.Raw2Entity<EInvestorPerIndustry>(rawData);
@@ -904,12 +1175,12 @@ namespace BaseSaverLib.Implementations
                         eBulkScript = await _repository.GetScriptOpenInterest(eOI);
                         break;
                     // 4.20 - Deem Trade Price
-                    case EDeemTradePrice.__MSG_TYPE:
-                        EDeemTradePrice eDTP = await this.Raw2Entity<EDeemTradePrice>(rawData);
-                        sequence = eDTP.MsgSeqNum;
-                        strExchange = eDTP.MarketID;
-                        eBulkScript = await _repository.GetScriptDeemTradePrice(eDTP);
-                        break;
+                    //case EDeemTradePrice.__MSG_TYPE:
+                    //    EDeemTradePrice eDTP = await this.Raw2Entity<EDeemTradePrice>(rawData);
+                    //    sequence = eDTP.MsgSeqNum;
+                    //    strExchange = eDTP.MarketID;
+                    //    eBulkScript = await _repository.GetScriptDeemTradePrice(eDTP);
+                    //    break;
                     // 4.21 - Foreigner Order Limit
                     case EForeignerOrderLimit.__MSG_TYPE:
                         EForeignerOrderLimit eFOL = await this.Raw2Entity<EForeignerOrderLimit>(rawData);
@@ -976,16 +1247,16 @@ namespace BaseSaverLib.Implementations
                         eBulkScript = await _repository.GetScriptTopNSymbolswithLowRatioofPrice(ETNSWLROP);
                         break;
                     // 4.30 - Trading Result of Foreign Investors
-                    case ETradingResultOfForeignInvestors.__MSG_TYPE:
-                        ETradingResultOfForeignInvestors ETRFI = await this.Raw2Entity<ETradingResultOfForeignInvestors>(rawData);
-                        if (ETRFI.TransactTime != null)
-                        {
-                            ETRFI.TransactTime = this._app.Common.FixToTimeString(ETRFI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime	
-                            sequence = ETRFI.MsgSeqNum;
-                            strExchange = ETRFI.MarketID;
-                        }
-                        eBulkScript = await _repository.GetScriptTradingResultofForeignInvestors(ETRFI);
-                        break;
+                    //case ETradingResultOfForeignInvestors.__MSG_TYPE:
+                    //    ETradingResultOfForeignInvestors ETRFI = await this.Raw2Entity<ETradingResultOfForeignInvestors>(rawData);
+                    //    if (ETRFI.TransactTime != null)
+                    //    {
+                    //        ETRFI.TransactTime = this._app.Common.FixToTimeString(ETRFI.TransactTime.ToString());// can phai chuyen SendingTime tu string sang DateTime	   
+                    //    }
+                    //    sequence = ETRFI.MsgSeqNum;
+                    //    strExchange = ETRFI.MarketID;
+                    //    eBulkScript = await _repository.GetScriptTradingResultofForeignInvestors(ETRFI);
+                    //    break;
                     // 4.31 - Disclosure
                     case EDisclosure.__MSG_TYPE:
                         EDisclosure eD = await this.Raw2Entity<EDisclosure>(rawData);
@@ -1627,6 +1898,248 @@ namespace BaseSaverLib.Implementations
                     row["aLowestPrice"] = item.LowestPrice != -9999999 ? (object)item.LowestPrice : DBNull.Value;
                     //row["RepeatingDataFix"] = item.RepeatingDataFix;
                     //row["RepeatingDataJson"] = item.RepeatingDataJson;
+                    row["aCheckSum"] = item.CheckSum;
+                    dt.Rows.Add(row);
+                }
+                return dt;
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+                return null;
+            }
+        }
+        public DataTable ConvertEIndexListToDataTable(List<EIndex> lst_eI)
+        {
+            try
+            {
+                DataTable dt = new DataTable();
+
+                dt.Columns.Add("aBeginString", typeof(string));
+                dt.Columns.Add("aBodyLength", typeof(string));
+                dt.Columns.Add("aMsgType", typeof(string));
+                dt.Columns.Add("aSenderCompID", typeof(string));
+                dt.Columns.Add("aTargetCompID", typeof(string));
+                dt.Columns.Add("aMsgSeqNum", typeof(string));
+                dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
+                dt.Columns.Add("aMarketID", typeof(string));
+                dt.Columns.Add("aTradingSessionID", typeof(string));
+                dt.Columns.Add("aMarketIndexClass", typeof(string));
+                dt.Columns.Add("aIndexsTypeCode", typeof(string));
+                dt.Columns.Add("aCurrency", typeof(string));
+                dt.Columns.Add("aTransactTime", typeof(string));
+                dt.Columns.Add("aTransDate", typeof(string));
+                dt.Columns.Add("aValueIndexes", typeof(string));
+                dt.Columns.Add("aTotalVolumeTraded", typeof(string));
+                dt.Columns.Add("aGrossTradeAmt", typeof(string));
+                dt.Columns.Add("aContauctAccTrdvol", typeof(string));
+                dt.Columns.Add("aContauctAccTrdval", typeof(string));
+                dt.Columns.Add("aBlktrdAccTrdvol", typeof(string));
+                dt.Columns.Add("aBlktrdAccTrdval", typeof(string));
+                dt.Columns.Add("aFluctuationUpperLimitIC", typeof(string));
+                dt.Columns.Add("aFluctuationUpIC", typeof(string));
+                dt.Columns.Add("aFluctuationSteadinessIC", typeof(string));
+                dt.Columns.Add("aFluctuationDownIC", typeof(string));
+                dt.Columns.Add("aFluctuationLowerLimitIC", typeof(string));
+                dt.Columns.Add("aFluctuationUpIV", typeof(string));
+                dt.Columns.Add("aFluctuationDownIV", typeof(string));
+                dt.Columns.Add("aFluctuationSteadinessIV", typeof(string));
+                dt.Columns.Add("aCheckSum", typeof(string));
+
+                foreach(var item in lst_eI)
+                {
+                    DataRow row = dt.NewRow();
+                    row["aBeginString"] = item.BeginString;
+                    row["aBodyLength"] = item.BodyLength;
+                    row["aMsgType"] = item.MsgType;
+                    row["aSenderCompID"] = item.SenderCompID;
+                    row["aTargetCompID"] = item.TargetCompID;
+                    row["aMsgSeqNum"] = item.MsgSeqNum;
+                    // Parse chuỗi "20250404 09:38:55.584" thành DateTime
+                    //if (DateTime.TryParseExact(item.SendingTime, "yyyyMMdd HH:mm:ss.fff",
+                    //    System.Globalization.CultureInfo.InvariantCulture,
+                    //    System.Globalization.DateTimeStyles.None,
+                    //    out DateTime sendingTime))
+                    //{
+                    //    row["aSendingTime"] = sendingTime;
+                    //}
+                    //else
+                    //{
+                    //    // Nếu lỗi format, để NULL
+                    //    row["aSendingTime"] = DBNull.Value;
+                    //}
+                    row["aSendingTime"] = item.SendingTime;
+                    row["aCreateTime"] = DateTime.Now;
+                    row["aMarketID"] = item.MarketID;
+                    row["aTradingSessionID"] = item.TradingSessionID;
+                    row["aMarketIndexClass"] = item.MarketIndexClass;
+
+                    row["aIndexsTypeCode"] = item.IndexsTypeCode;
+                    row["aCurrency"] = item.Currency;
+                    row["aTransactTime"] = item.TransactTime;
+                    row["aTransDate"] = item.TransDate;
+                    row["aValueIndexes"] = item.ValueIndexes;
+
+                    row["aTotalVolumeTraded"] = item.TotalVolumeTraded;
+                    row["aGrossTradeAmt"] = item.GrossTradeAmt;
+                    row["aContauctAccTrdvol"] = item.ContauctAccTrdvol;
+                    row["aContauctAccTrdval"] = item.ContauctAccTrdval;
+                    row["aBlktrdAccTrdvol"] = item.BlktrdAccTrdvol;
+                    row["aBlktrdAccTrdval"] = item.BlktrdAccTrdval;
+                    row["aFluctuationUpperLimitIC"] = item.FluctuationUpperLimitIssueCount;
+                    row["aFluctuationUpIC"] = item.FluctuationUpIssueCount;
+                    row["aFluctuationSteadinessIC"] = item.FluctuationSteadinessIssueCount;
+                    row["aFluctuationDownIC"] = item.FluctuationDownIssueCount;
+                    row["aFluctuationLowerLimitIC"] = item.FluctuationLowerLimitIssueCount;
+                    row["aFluctuationUpIV"] = item.FluctuationUpIssueVolume;
+                    row["aFluctuationDownIV"] = item.FluctuationDownIssueVolume;
+                    row["aFluctuationSteadinessIV"] = item.FluctuationSteadinessIssueVolume;
+                    row["aCheckSum"] = item.CheckSum;
+                    dt.Rows.Add(row);
+                }
+                return dt;
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+                return null;
+            }
+        }
+        public DataTable ConvertEDeemTradePriceListToDataTable(List<EDeemTradePrice> lst_eDTP)
+        {
+            try
+            {
+                DataTable dt = new DataTable();
+
+                dt.Columns.Add("aBeginString", typeof(string));
+                dt.Columns.Add("aBodyLength", typeof(string));
+                dt.Columns.Add("aMsgType", typeof(string));
+                dt.Columns.Add("aSenderCompID", typeof(string));
+                dt.Columns.Add("aTargetCompID", typeof(string));
+                dt.Columns.Add("aMsgSeqNum", typeof(string));
+                dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
+                dt.Columns.Add("aMarketID", typeof(string));
+                dt.Columns.Add("aBoardID", typeof(string));
+                dt.Columns.Add("aSymbol", typeof(string));
+                dt.Columns.Add("aExpectedTradePx", typeof(string));
+                dt.Columns.Add("aExpectedTradeQty", typeof(string));
+                dt.Columns.Add("aExpectedTradeYield", typeof(string));
+                dt.Columns.Add("aCheckSum", typeof(string));
+                foreach (var item in lst_eDTP)
+                {
+                    DataRow row = dt.NewRow();
+                    row["aBeginString"] = item.BeginString;
+                    row["aBodyLength"] = item.BodyLength;
+                    row["aMsgType"] = item.MsgType;
+                    row["aSenderCompID"] = item.SenderCompID;
+                    row["aTargetCompID"] = item.TargetCompID;
+                    row["aMsgSeqNum"] = item.MsgSeqNum;
+                    // Parse chuỗi "20250404 09:38:55.584" thành DateTime
+                    //if (DateTime.TryParseExact(item.SendingTime, "yyyyMMdd HH:mm:ss.fff",
+                    //    System.Globalization.CultureInfo.InvariantCulture,
+                    //    System.Globalization.DateTimeStyles.None,
+                    //    out DateTime sendingTime))
+                    //{
+                    //    row["aSendingTime"] = sendingTime;
+                    //}
+                    //else
+                    //{
+                    //    // Nếu lỗi format, để NULL
+                    //    row["aSendingTime"] = DBNull.Value;
+                    //}
+                    row["aSendingTime"] = item.SendingTime;
+                    row["aCreateTime"] = DateTime.Now;
+                    row["aMarketID"] = item.MarketID;
+                    row["aBoardID"] = item.BoardID;
+                    row["aSymbol"] = item.Symbol;
+
+                    row["aExpectedTradePx"] = item.ExpectedTradePx;
+                    row["aExpectedTradeQty"] = item.ExpectedTradeQty;
+                    row["aExpectedTradeYield"] = item.ExpectedTradeYield;
+                    row["aCheckSum"] = item.CheckSum;
+                    dt.Rows.Add(row);
+                }
+                return dt;
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+                return null;
+            }
+        }
+        public DataTable ConvertETradingResultofFIListToDataTable(List<ETradingResultOfForeignInvestors> lst_ERFI)
+        {
+            try
+            {
+                DataTable dt = new DataTable();
+                dt.Columns.Add("aBeginString", typeof(string));
+                dt.Columns.Add("aBodyLength", typeof(string));
+                dt.Columns.Add("aMsgType", typeof(string));
+                dt.Columns.Add("aSenderCompID", typeof(string));
+                dt.Columns.Add("aTargetCompID", typeof(string));
+                dt.Columns.Add("aMsgSeqNum", typeof(string));
+                dt.Columns.Add("aSendingTime", typeof(DateTime));
+                dt.Columns.Add("aCreateTime", typeof(DateTime));
+                dt.Columns.Add("aMarketID", typeof(string));
+                dt.Columns.Add("aBoardID", typeof(string));
+                dt.Columns.Add("aSymbol", typeof(string));
+                dt.Columns.Add("aTradingSessionID", typeof(string));
+                dt.Columns.Add("aTransactTime", typeof(string));
+
+                dt.Columns.Add("aFornInvestTypeCode", typeof(string));
+                dt.Columns.Add("aSellVolume", typeof(string));
+                dt.Columns.Add("aSellTradeAmount", typeof(string));
+                dt.Columns.Add("aBuyVolume", typeof(string));
+                dt.Columns.Add("aBuyTradedAmount", typeof(string));
+                dt.Columns.Add("aSellVolumeTotal", typeof(string));
+                dt.Columns.Add("aSellTradeAmountTotal", typeof(string));
+
+                dt.Columns.Add("aBuyVolumeTotal", typeof(string));
+                dt.Columns.Add("aBuyTradedAmountTotal", typeof(string));
+                dt.Columns.Add("aCheckSum", typeof(string));
+                foreach(var item in lst_ERFI)
+                {
+                    DataRow row = dt.NewRow();
+                    row["aBeginString"] = item.BeginString;
+                    row["aBodyLength"] = item.BodyLength;
+                    row["aMsgType"] = item.MsgType;
+                    row["aSenderCompID"] = item.SenderCompID;
+                    row["aTargetCompID"] = item.TargetCompID;
+                    row["aMsgSeqNum"] = item.MsgSeqNum;
+                    // Parse chuỗi "20250404 09:38:55.584" thành DateTime
+                    //if (DateTime.TryParseExact(item.SendingTime, "yyyyMMdd HH:mm:ss.fff",
+                    //    System.Globalization.CultureInfo.InvariantCulture,
+                    //    System.Globalization.DateTimeStyles.None,
+                    //    out DateTime sendingTime))
+                    //{
+                    //    row["aSendingTime"] = sendingTime;
+                    //}
+                    //else
+                    //{
+                    //    // Nếu lỗi format, để NULL
+                    //    row["aSendingTime"] = DBNull.Value;
+                    //}
+                    row["aSendingTime"] = item.SendingTime;
+                    row["aCreateTime"] = DateTime.Now;
+                    row["aMarketID"] = item.MarketID;
+                    row["aBoardID"] = item.BoardID;
+                    row["aSymbol"] = item.Symbol;
+
+                    row["aTradingSessionID"] = item.TradingSessionID;
+                    row["aTransactTime"] = item.TransactTime;
+
+                    row["aFornInvestTypeCode"] = item.FornInvestTypeCode;
+                    row["aSellVolume"] = item.SellVolume;
+                    row["aSellTradeAmount"] = item.SellTradeAmount;
+                    row["aBuyVolume"] = item.BuyVolume;
+                    row["aBuyTradedAmount"] = item.BuyTradedAmount;
+                    row["aSellVolumeTotal"] = item.SellVolumeTotal;
+                    row["aSellTradeAmountTotal"] = item.SellTradeAmountTotal;
+
+                    row["aBuyVolumeTotal"] = item.BuyVolumeTotal;
+                    row["aBuyTradedAmountTotal"] = item.BuyTradeAmountTotal;
                     row["aCheckSum"] = item.CheckSum;
                     dt.Rows.Add(row);
                 }

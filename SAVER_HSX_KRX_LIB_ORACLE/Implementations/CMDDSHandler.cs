@@ -173,16 +173,9 @@ namespace BaseSaverLib.Implementations
                 this._monitor.SendStatusToMonitor(
                 this._app.Common.GetLocalDateTime(),
                 this._app.Common.GetLocalIp(),
-                CMonitor.MONITOR_APP.HSX_Feeder5G_PT,
+                CMonitor.MONITOR_APP.HSX_Saver5G_Oracle,
                 arrMsg.Length,
                 SW_RD.ElapsedMilliseconds);
-
-                //this._monitor.SendStatusToMonitor(
-                //this._app.Common.GetLocalDateTime(),
-                //this._app.Common.GetLocalIp(),
-                //CMonitor.MONITOR_APP.HSX_Saver5G,
-                //arrMsg.Length,
-                //SW_RD.ElapsedMilliseconds);
 
                 return true;
             }

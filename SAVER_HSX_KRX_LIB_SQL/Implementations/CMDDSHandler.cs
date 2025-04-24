@@ -327,7 +327,7 @@ namespace BaseSaverLib.Implementations
                 this._monitor.SendStatusToMonitor(
                     this._app.Common.GetLocalDateTime(),
                     this._app.Common.GetLocalIp(),
-                    CMonitor.MONITOR_APP.HSX_Saver5G_Oracle,
+                    CMonitor.MONITOR_APP.HSX_Saver5G,
                     totalcount,
                     SW_RD.ElapsedMilliseconds);
                     return true;

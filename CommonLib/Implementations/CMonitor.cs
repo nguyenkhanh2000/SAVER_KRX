@@ -79,7 +79,9 @@ namespace CommonLib.Implementations
                                                  "HSXF5.5Q",	        //23//2020-10-27 12:32:46 ngocta2
                                                  "HSXF5.5I",	        //24//2020-10-27 12:32:46 ngocta2
                                                  "HSXF5.5",             //25
-                                                 "HSXS5_0RD"
+                                                 "HSXS5_0RD",
+                                                 "HSXS5.0R",         //thêm cho SaverHSX oracle
+                                                 "HNXS5.0R"          //thêm chp SaverHNX oracle
                                              };
 
         public enum MONITOR_APP
@@ -111,6 +113,8 @@ namespace CommonLib.Implementations
             HSX_FeederEx_I = 24,//2020-10-23 09:06:58 ngocta2
             HSX_Feeder55G = 25,//2020-11-04 08:35:48 ngocta2
             HSX_Saver5G_Redis = 26,
+            HSX_Saver5G_Oracle = 27,
+            HNX_Saver5G_Oracle = 28
         }
 
         /// <summary>

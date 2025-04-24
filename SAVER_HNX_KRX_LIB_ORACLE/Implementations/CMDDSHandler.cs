@@ -173,7 +173,7 @@ namespace BaseSaverLib.Implementations
                 this._monitor.SendStatusToMonitor(
                     this._app.Common.GetLocalDateTime(),
                     this._app.Common.GetLocalIp(),
-                    CMonitor.MONITOR_APP.HNX_Saver5G_DB,
+                    CMonitor.MONITOR_APP.HNX_Saver5G_Oracle,
                     arrMsg.Length,
                     SW_RD.ElapsedMilliseconds
                 );

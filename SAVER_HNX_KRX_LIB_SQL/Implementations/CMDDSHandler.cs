@@ -340,7 +340,7 @@ namespace BaseSaverLib.Implementations
                             Scriptmssql.Add(mssqlBatchBuilder.ToString());
 
                             //Ghi log count 
-                            this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString()}");
+                            this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.Length.ToString()}");
                         }
                     }
                 }

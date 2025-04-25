@@ -165,7 +165,7 @@ namespace BaseSaverLib.Implementations
 
                             ScriptOracle.Add(oracleBatchBuilder.ToString());
                              
-                            this._app.SqlLogger.LogSciptSQL($"Oracle_{msgTypes}", $"{oracleBatchBuilder.ToString().Length}");
+                            this._app.SqlLogger.LogSciptSQL($"Oracle_{msgTypes}", $"{oracleBatchBuilder.Length.ToString()}");
                         }
                     }
                     await this._repository.ExecBulkScript_Oracle(ScriptOracle);
@@ -697,7 +697,7 @@ namespace BaseSaverLib.Implementations
                             {
                                 checkCmd.Transaction = transaction;
                                 var count = Convert.ToInt32(checkCmd.ExecuteScalar());
-                                Console.WriteLine("Số dòng trong bảng tạm: " + count);
+                                //Console.WriteLine("Số dòng trong bảng tạm: " + count);
                             }
                             // Gọi stored procedure để insert/update dữ liệu vào bảng chính
                             using (OracleCommand cmdProc = new OracleCommand("PROC_MERGE_MSG_W_HSX", conn))

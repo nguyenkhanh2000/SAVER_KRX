@@ -312,7 +312,7 @@ namespace BaseSaverLib.Implementations
                             Scriptmssql.Add(mssqlBatchBuilder.ToString());
 
                             //Ghi log count 
-                            this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.ToString()}");
+                            this._app.SqlLogger.LogSciptSQL($"SQLServer_{msgType}", $"{mssqlBatchBuilder.Length.ToString()}");
                         }
                     }
                 }
@@ -323,7 +323,7 @@ namespace BaseSaverLib.Implementations
                 {
                     await this._repository.ExecBulkScript_SqlServer(Scriptmssql); 
                 }
-                Console.WriteLine("COUNT_MSG_HSX: " + arrMsg.Length + " --- " + "SQL_TIMER__________________:" + sW.ElapsedMilliseconds.ToString());
+                //Console.WriteLine("COUNT_MSG_HSX: " + arrMsg.Length + " --- " + "SQL_TIMER__________________:" + sW.ElapsedMilliseconds.ToString());
                 this._monitor.SendStatusToMonitor(
                     this._app.Common.GetLocalDateTime(),
                     this._app.Common.GetLocalIp(),

@@ -192,7 +192,65 @@ namespace CommonLib.Implementations
                 this._app.ErrorLogger.LogError(ex);
                 return false;
             }
-        }       
+        }
+        public bool SetValueString(string strKey, string strValue, int intDuration)
+        {
+            try
+            {
+                string currentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+                var wrappedData = new
+                {
+                    Time = currentTime,
+                    Data = JsonConvert.DeserializeObject<object>(strValue)
+                };
+
+                string finalValue = JsonConvert.SerializeObject(wrappedData);
+
+                string backupKey = "BACKUP:" + DateTime.Today.ToString("yyyy:MM:dd:") + strKey;
+
+                var taskRC1 = Task.Run(() =>
+                {
+                    try
+                    {
+                        if (RC_1 != null)
+                        {
+                            RC_1.StringSet(strKey, finalValue, TimeSpan.FromMinutes(intDuration));
+                            RC_1.StringSet(backupKey, finalValue, TimeSpan.FromMinutes(intDuration));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this._app.ErrorLogger.LogError(ex);
+                    }
+                });
+
+                var taskRC2 = Task.Run(() =>
+                {
+                    try
+                    {
+                        if (RC_2 != null)
+                        {
+                            RC_2.StringSet(strKey, finalValue, TimeSpan.FromMinutes(intDuration));
+                            RC_2.StringSet(backupKey, finalValue, TimeSpan.FromMinutes(intDuration));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this._app.ErrorLogger.LogError(ex);
+                    }
+                });
+
+                Task.WhenAll(taskRC1, taskRC2).Wait();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                this._app.ErrorLogger.LogError(ex);
+                return false;
+            }
+        }
+
         private string AddHeaderFooter(string strRedisValue)
         {
             StringBuilder sb = new StringBuilder(TEMPLATE_REDIS_VALUE);

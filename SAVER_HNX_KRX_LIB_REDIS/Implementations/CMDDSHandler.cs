@@ -129,7 +129,9 @@ namespace BaseSaverLib.Implementations
                         {
                             d_dic_stockno[eSD.Symbol] = eSD.TickerCode;
                             string stockno = JsonConvert.SerializeObject(d_dic_stockno);
-                            _redis.SetCacheBI(TEMPLATE_REDIS_KEY_STOCK_NO_HNX, stockno, intPeriod);
+
+                            //_redis.SetCacheBI(TEMPLATE_REDIS_KEY_STOCK_NO_HNX, stockno, intPeriod);
+                            _redis.SetValueString(TEMPLATE_REDIS_KEY_STOCK_NO_HNX, stockno, intPeriod);                            
                         }
                     }
                     if(msgType == EPrice.__MSG_TYPE)
@@ -219,18 +221,24 @@ namespace BaseSaverLib.Implementations
 
                     if (!string.IsNullOrEmpty(value))
                     {
+                        // Parse JSON để lấy phần "Data"
+                        var obj = JsonConvert.DeserializeObject<JObject>(value);
+                        var data = obj["Data"];
 
-                        Dictionary<string, string> storedDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(value);
-
-                        foreach (var kew in storedDictionary)
+                        if (data != null)
                         {
-                            if (d_dic_stockno.ContainsKey(kew.Key))
+                            Dictionary<string, string> storedDictionary = data.ToObject<Dictionary<string, string>>();
+
+                            foreach (var kew in storedDictionary)
                             {
-                                d_dic_stockno[kew.Key] = kew.Value;
-                            }
-                            else
-                            {
-                                d_dic_stockno.Add(kew.Key, kew.Value);
+                                if (d_dic_stockno.ContainsKey(kew.Key))
+                                {
+                                    d_dic_stockno[kew.Key] = kew.Value;
+                                }
+                                else
+                                {
+                                    d_dic_stockno.Add(kew.Key, kew.Value);
+                                }
                             }
                         }
                     }
@@ -296,18 +304,24 @@ namespace BaseSaverLib.Implementations
 
                     if (!string.IsNullOrEmpty(value))
                     {
+                        // Parse JSON để lấy phần "Data"
+                        var obj = JsonConvert.DeserializeObject<JObject>(value);
+                        var data = obj["Data"];
 
-                        Dictionary<string, string> storedDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(value);
-
-                        foreach (var kew in storedDictionary)
+                        if (data != null)
                         {
-                            if (d_dic_stockno.ContainsKey(kew.Key))
+                            Dictionary<string, string> storedDictionary = data.ToObject<Dictionary<string, string>>();
+
+                            foreach (var kew in storedDictionary)
                             {
-                                d_dic_stockno[kew.Key] = kew.Value;
-                            }
-                            else
-                            {
-                                d_dic_stockno.Add(kew.Key, kew.Value);
+                                if (d_dic_stockno.ContainsKey(kew.Key))
+                                {
+                                    d_dic_stockno[kew.Key] = kew.Value;
+                                }
+                                else
+                                {
+                                    d_dic_stockno.Add(kew.Key, kew.Value);
+                                }
                             }
                         }
                     }
@@ -379,22 +393,27 @@ namespace BaseSaverLib.Implementations
 
                     if (!string.IsNullOrEmpty(value))
                     {
+                        // Parse JSON để lấy phần "Data"
+                        var obj = JsonConvert.DeserializeObject<JObject>(value);
+                        var data = obj["Data"];
 
-                        Dictionary<string, string> storedDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(value);
-
-                        foreach (var kew in storedDictionary)
+                        if (data != null)
                         {
-                            if (d_dic_stockno.ContainsKey(kew.Key))
+                            Dictionary<string, string> storedDictionary = data.ToObject<Dictionary<string, string>>();
+
+                            foreach (var kew in storedDictionary)
                             {
-                                d_dic_stockno[kew.Key] = kew.Value;
-                            }
-                            else
-                            {
-                                d_dic_stockno.Add(kew.Key, kew.Value);
+                                if (d_dic_stockno.ContainsKey(kew.Key))
+                                {
+                                    d_dic_stockno[kew.Key] = kew.Value;
+                                }
+                                else
+                                {
+                                    d_dic_stockno.Add(kew.Key, kew.Value);
+                                }
                             }
                         }
                     }
-
                 }
                 if (d_dic_stockno.ContainsKey(eP.Symbol))
                 {
@@ -460,18 +479,24 @@ namespace BaseSaverLib.Implementations
 
                     if (!string.IsNullOrEmpty(value))
                     {
+                        // Parse JSON để lấy phần "Data"
+                        var obj = JsonConvert.DeserializeObject<JObject>(value);
+                        var data = obj["Data"];
 
-                        Dictionary<string, string> storedDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(value);
-
-                        foreach (var kew in storedDictionary)
+                        if (data != null)
                         {
-                            if (d_dic_stockno.ContainsKey(kew.Key))
+                            Dictionary<string, string> storedDictionary = data.ToObject<Dictionary<string, string>>();
+
+                            foreach (var kew in storedDictionary)
                             {
-                                d_dic_stockno[kew.Key] = kew.Value;
-                            }
-                            else
-                            {
-                                d_dic_stockno.Add(kew.Key, kew.Value);
+                                if (d_dic_stockno.ContainsKey(kew.Key))
+                                {
+                                    d_dic_stockno[kew.Key] = kew.Value;
+                                }
+                                else
+                                {
+                                    d_dic_stockno.Add(kew.Key, kew.Value);
+                                }
                             }
                         }
                     }
@@ -530,25 +555,30 @@ namespace BaseSaverLib.Implementations
                 string Symbol = "";
                 string value = "";
                 var stopWatch = Stopwatch.StartNew();
-                //var SW = Stopwatch.StartNew();
                 if (d_dic_stockno.Count < 1)
                 {
                     value = _redis.RC_1.StringGet(TEMPLATE_REDIS_KEY_STOCK_NO_HNX);
 
                     if (!string.IsNullOrEmpty(value))
                     {
+                        // Parse JSON để lấy phần "Data"
+                        var obj = JsonConvert.DeserializeObject<JObject>(value);
+                        var data = obj["Data"];
 
-                        Dictionary<string, string> storedDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(value);
-
-                        foreach (var kew in storedDictionary)
+                        if (data != null)
                         {
-                            if (d_dic_stockno.ContainsKey(kew.Key))
+                            Dictionary<string, string> storedDictionary = data.ToObject<Dictionary<string, string>>();
+
+                            foreach (var kew in storedDictionary)
                             {
-                                d_dic_stockno[kew.Key] = kew.Value;
-                            }
-                            else
-                            {
-                                d_dic_stockno.Add(kew.Key, kew.Value);
+                                if (d_dic_stockno.ContainsKey(kew.Key))
+                                {
+                                    d_dic_stockno[kew.Key] = kew.Value;
+                                }
+                                else
+                                {
+                                    d_dic_stockno.Add(kew.Key, kew.Value);
+                                }
                             }
                         }
                     }
@@ -594,17 +624,24 @@ namespace BaseSaverLib.Implementations
 
                     if (!string.IsNullOrEmpty(value))
                     {
-                        Dictionary<string, string> storedDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(value);
+                        // Parse JSON để lấy phần "Data"
+                        var obj = JsonConvert.DeserializeObject<JObject>(value);
+                        var data = obj["Data"];
 
-                        foreach (var kew in storedDictionary)
+                        if (data != null)
                         {
-                            if (d_dic_stockno.ContainsKey(kew.Key))
+                            Dictionary<string, string> storedDictionary = data.ToObject<Dictionary<string, string>>();
+
+                            foreach (var kew in storedDictionary)
                             {
-                                d_dic_stockno[kew.Key] = kew.Value;
-                            }
-                            else
-                            {
-                                d_dic_stockno.Add(kew.Key, kew.Value);
+                                if (d_dic_stockno.ContainsKey(kew.Key))
+                                {
+                                    d_dic_stockno[kew.Key] = kew.Value;
+                                }
+                                else
+                                {
+                                    d_dic_stockno.Add(kew.Key, kew.Value);
+                                }
                             }
                         }
                     }
